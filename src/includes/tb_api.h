@@ -11,7 +11,7 @@
 /**
  * @brief This is the main routine which sets up and runs the TBasic interpreter, exposed as the one API item.
  * 
- * @param argv --- `main()` argument stirngs
+ * @param argv --- `main()` argument strings
  * @param argc --- `main()` argument count, including process path
  * @param native_names --- N-sized array of `charspan`s, each viewing a static lifetime `const char *`
  * @param native_fns --- N-sized array of function pointer type `VMStatus (*)(VMState *, int)`
@@ -77,6 +77,72 @@ static inline int tbasic_run(const char *argv[], int argc, const charspan *nativ
     }
 
     return driver_run(&app, source_fpath);
+}
+
+
+
+static inline VMStatus tbasic_get_status(const VMState *vm) {
+    return vm->status;
+}
+
+static inline void tbasic_set_status(VMState *vm, VMStatus status) {
+    vm->status = status;
+}
+
+static inline int tbasic_pop_n(VMState *vm, uint8_t n) {
+    vm->sp -= n;
+
+    return vm->sp;
+}
+
+static inline int tbasic_push_nil(VMState *vm) {
+    vm->sp++;
+    vm->stack[vm->sp] = make_value_none();
+
+    return vm->sp;
+}
+
+static inline int tbasic_push_bool(VMState *vm, int8_t b) {
+    vm->sp++;
+    vm->stack[vm->sp] = make_value_bool(b);
+
+    return vm->sp;
+}
+
+static inline int tbasic_push_int(VMState *vm, int i) {
+    vm->sp++;
+    vm->stack[vm->sp] = make_value_int(i);
+
+    return vm->sp;
+}
+
+static inline int tbasic_push_float(VMState *vm, float f) {
+    vm->sp++;
+    vm->stack[vm->sp] = make_value_real(f);
+
+    return vm->sp;
+}
+
+static inline int tbasic_push_string(VMState *vm, const char *cstr, size_t n) {
+    mystr temp_s;
+    mystr_res(&temp_s, DEFAULT_STRING_SIZE);
+
+    if (!mystr_append_raw(&temp_s, cstr, n)) {
+        FATAL_ABORT("TBAPI ERROR", __FILE__, __LINE__, "Failed to fill mystr for passed string of const char *cstr, allocation may have failed.");
+    }
+
+    String *s_object = alloc_string_of_mystr(&temp_s);
+
+    if (!s_object) {
+        FATAL_ABORT("TBAPI ERROR", __FILE__, __LINE__, "Failed to create TBasic string, allocation may have failed.");
+    }
+
+    const int16_t s_object_id = heap_store(&vm->heap, (ObjMutPtr)s_object);
+
+    vm->sp++;
+    vm->stack[vm->sp] = make_value_obj(s_object_id);
+
+    return vm->sp;
 }
 
 #endif
