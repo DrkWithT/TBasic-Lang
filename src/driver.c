@@ -19,6 +19,8 @@ static const LexItem special_lexicals_v[] = {
     (LexItem) {.literal = "RET", .tag = tk_keyword_ret},
     (LexItem) {.literal = "FUN", .tag = tk_keyword_fun},
     (LexItem) {.literal = "END", .tag = tk_keyword_end},
+    (LexItem) {.literal = "SELF", .tag = tk_keyword_self},
+    (LexItem) {.literal = "->", .tag = tk_os_ref_method_of},
     (LexItem) {.literal = "*", .tag = tk_os_times},
     (LexItem) {.literal = "/", .tag = tk_os_slash},
     (LexItem) {.literal = "+", .tag = tk_os_plus},
