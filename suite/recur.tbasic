@@ -3,9 +3,9 @@
 FUN fib(n):
     IF n < 2:
         RET n;
-    END ELSE:
-        RET fib(n - 1) + fib(n - 2);
     END
+
+    RET fib(n - 1) + fib(n - 2);
 END
 
-RET fib(35);
+RET fib(20);
