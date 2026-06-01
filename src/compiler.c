@@ -949,7 +949,7 @@ int8_t compiler_do_ifs(Compiler *self, Lexer *lexer, const charspan *s, Program 
     compiler_emit_op_unflagged(self, pg, op_jmp, 0);
 
     const int16_t begin_else_pos = jump_skip_else_pos + 1;
-    if (!compiler_do_stmt(self, lexer, s, pg)) {
+    if (!compiler_do_nestable_stmt(self, lexer, s, pg)) {
         fprintf(stderr, "Note: See else-clause in the falsy-body around line %d.\n", self->curr.line);
         return 0;
     }
@@ -1294,6 +1294,8 @@ int8_t compiler_do_nestable_stmt(Compiler *self, Lexer *lexer, const charspan *s
         return compiler_do_continue(self, lexer, s, pg);
     case tk_keyword_ret:
         return compiler_do_ret(self, lexer, s, pg);
+    case tk_colon:
+        return compiler_do_block(self, lexer, s, pg);
     default:
         return compiler_do_expr_stmt(self, lexer, s, pg);
     }
