@@ -12,13 +12,13 @@ A very trivial scripting language implemented in C11. Only for educational purpo
    - Dynamically-linked demo binary (uses shared lib): `./project.sh sr`
 
 ### Basic Features
- - BASIC like but...
+ - BASIC inspired but:
     - No line numbers or GOTO.
     - VAR declarations supporting multiple defs per line.
-    - Control Flow with IF/ELSE or WHILE statements.
+    - C-like Control Flow with branching or loop statements.
     - Procedural functions.
-    - Fixed arrays.
-    - Rest parameters (sugar for array-view arguments)
+    - Data structures i.e lists & dicts.
+    - Exceptions.
 
 ### Roadmap
 #### v0.1.x
@@ -57,9 +57,15 @@ A very trivial scripting language implemented in C11. Only for educational purpo
  - Add `make_dict_dud` opcode to VM & generation. **OK**
 
 #### v0.7.x:
- - Make unified API to register native functions & manipulate VM state. **WIP**
- - Support shared object library builds, exposing a header API to the shared lib. **WIP**
+ - Make unified API to register native functions & manipulate VM state. **OK**
+ - Support shared object library builds, exposing a header API to the shared lib. **OK**
 
 #### v0.8.x:
+ - Fix IF-ELSE syntax to allow ELSE IF or premature END. **OK**
+ - Add null handling operators: **TODO**
+   - Prefix `?` for compact null checks.
+   - Binary Infix `??` for null coalescing.
+
+#### v0.9.x:
  - Add support for bytecode serialization / deserialization _with_ required author hash to run properly.
    - Invoke UB if incorrect.

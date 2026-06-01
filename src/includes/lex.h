@@ -36,7 +36,6 @@ typedef enum token_tag_t {
     tk_os_and,
     tk_os_or,
     tk_os_bind_equals,  // ? `:=` is for mutating a variable
-    tk_os_access_of,    // ? `.` for accessing a named member
     tk_comma,
     tk_colon,
     tk_semicolon,

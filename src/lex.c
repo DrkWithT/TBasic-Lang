@@ -211,7 +211,6 @@ Token lexer_next(Lexer *self, const charspan *s) {
     const char c = s->data[self->pos];
 
     switch (c) {
-        case '.': return lexer_lex_single(self, tk_os_access_of, s);
         case ',': return lexer_lex_single(self, tk_comma, s);
         case ';': return lexer_lex_single(self, tk_semicolon, s);
         case '(': return lexer_lex_single(self, tk_lparen, s);
