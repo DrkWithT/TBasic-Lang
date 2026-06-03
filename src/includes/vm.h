@@ -40,6 +40,7 @@ VMStatus fn_mk_list(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_mk_dict(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_get_idx(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_set_idx(VMState *, const Instruction *, const Value *, Value *);
+VMStatus fn_chk_none(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_mul(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_div(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_add(VMState *, const Instruction *, const Value *, Value *);

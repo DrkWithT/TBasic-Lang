@@ -48,6 +48,7 @@ typedef enum vm_opcode_t : uint8_t {
     op_mk_dict,
     op_get_idx,
     op_set_idx,
+    op_chk_none,      // ? checks if a value is NIL
     op_mul,
     op_div,
     op_add,

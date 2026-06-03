@@ -15,6 +15,7 @@ static const char *opcode_names[] = {
     "op_mk_dict",
     "op_get_idx",
     "op_set_idx",
+    "op_chk_none",
     "op_mul",
     "op_div",
     "op_add",

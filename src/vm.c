@@ -20,6 +20,7 @@ static const OpFunc opcode_handlers[] = {
     fn_mk_dict,
     fn_get_idx,
     fn_set_idx,
+    fn_chk_none,
     fn_mul,
     fn_div,
     fn_add,
@@ -252,6 +253,16 @@ VMStatus fn_set_idx(VMState *s, const Instruction *ip, const Value *cvp, Value *
     }
 
     ip++;
+
+    TAILCALL
+    return vm_dispatch(s, ip, cvp, stack);
+}
+
+VMStatus fn_chk_none(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    const int sp = s->sp;
+
+    stack[sp + 1] = make_value_bool(stack[sp].tag == vtag_nil);
+    s->sp++;
 
     TAILCALL
     return vm_dispatch(s, ip, cvp, stack);
