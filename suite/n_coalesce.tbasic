@@ -1,0 +1,10 @@
+`test null-coalesce op`
+
+LET a : NIL, b : 1;
+
+`both should be 1`
+
+print(a ?? b);
+print(b ?? (a ?? b));
+
+RET 0;
