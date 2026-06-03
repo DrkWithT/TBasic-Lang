@@ -62,7 +62,7 @@ A very trivial scripting language implemented in C11. Only for educational purpo
 
 #### v0.8.x:
  - Fix IF-ELSE syntax to allow ELSE IF or premature END. **OK**
- - Add null handling operators: **TODO**
+ - Add null handling operators: **OK**
    - Prefix `?` for compact null checks.
    - Binary Infix `??` for null coalescing.
 
