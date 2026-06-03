@@ -19,6 +19,8 @@ static const LexItem special_lexicals_v[] = {
     (LexItem) {.literal = "RET", .tag = tk_keyword_ret},
     (LexItem) {.literal = "FUN", .tag = tk_keyword_fun},
     (LexItem) {.literal = "END", .tag = tk_keyword_end},
+    (LexItem) {.literal = "?", .tag = tk_os_nullish},
+    (LexItem) {.literal = "??", .tag = tk_os_nullcol},
     (LexItem) {.literal = "*", .tag = tk_os_times},
     (LexItem) {.literal = "/", .tag = tk_os_slash},
     (LexItem) {.literal = "+", .tag = tk_os_plus},
@@ -30,7 +32,7 @@ static const LexItem special_lexicals_v[] = {
     (LexItem) {.literal = "&&", .tag = tk_os_and},
     (LexItem) {.literal = "||", .tag = tk_os_or},
     (LexItem) {.literal = ":=", .tag = tk_os_bind_equals},
-    (LexItem) {.literal = ":", .tag = tk_colon}
+    (LexItem) {.literal = ":", .tag = tk_colon},
 };
 
 IMPL_SCALAR_VEC(NativeFn)

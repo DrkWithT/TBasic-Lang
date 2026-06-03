@@ -118,6 +118,8 @@ int8_t compiler_do_dict(Compiler *self, Lexer *lexer, const charspan *s, Program
 int8_t compiler_do_literal(Compiler *self, Lexer *lexer, const charspan *s, Program *pg);
 int8_t compiler_do_lhs(Compiler *self, Lexer *lexer, const charspan *s, Program *pg);
 int8_t compiler_do_call(Compiler *self, Lexer *lexer, const charspan *s, Program *pg);
+int8_t compiler_do_unary(Compiler *self, Lexer *lexer, const charspan *s, Program *pg);
+int8_t compiler_do_null_coal(Compiler *self, Lexer *lexer, const charspan *s, Program *pg);
 int8_t compiler_do_factor(Compiler *self, Lexer *lexer, const charspan *s, Program *pg);
 int8_t compiler_do_sum(Compiler *self, Lexer *lexer, const charspan *s, Program *pg);
 int8_t compiler_do_equality(Compiler *self, Lexer *lexer, const charspan *s, Program *pg);

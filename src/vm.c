@@ -263,6 +263,7 @@ VMStatus fn_chk_none(VMState *s, const Instruction *ip, const Value *cvp, Value 
 
     stack[sp + 1] = make_value_bool(stack[sp].tag == vtag_nil);
     s->sp++;
+    ip++;
 
     TAILCALL
     return vm_dispatch(s, ip, cvp, stack);
