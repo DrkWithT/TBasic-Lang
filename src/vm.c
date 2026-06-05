@@ -9,6 +9,7 @@ static const OpFunc opcode_handlers[] = {
     fn_nop,
     fn_put_none,
     fn_put_bool,
+    fn_reserve,
     fn_load_imm_gid,
     fn_load_local,
     fn_store_local,
@@ -56,6 +57,21 @@ VMStatus fn_put_none(VMState *s, const Instruction *ip, const Value *cvp, Value 
 VMStatus fn_put_bool(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
     s->sp++;
     stack[s->sp] = make_value_bool(ip->flag & 1);
+    ip++;
+
+    TAILCALL
+    return vm_dispatch(s, ip, cvp, stack);
+}
+
+VMStatus fn_reserve(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    const int old_sp = s->sp;
+    const uint16_t res_count = ip->wide;
+
+    for (uint16_t nil_pushes = res_count; nil_pushes > 0; nil_pushes--) {
+        stack[old_sp + nil_pushes].tag = vtag_nil; // ? NOTE: Do a lazy reset of previously used / allocated stack slot for perf.
+    }
+
+    s->sp += res_count;
     ip++;
 
     TAILCALL
