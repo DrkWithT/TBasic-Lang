@@ -19,8 +19,6 @@ FUN bbSort(nums, len):
 
     IF end < 1:
         RET nums;
-    END ELSE:
-        `do nothing if check is ok`
     END
 
     WHILE i < len:
@@ -33,9 +31,6 @@ FUN bbSort(nums, len):
 
                 nums[j] := b;
                 nums[j + 1] := a;
-            END ELSE:
-                `do nothing`
-                j := j + 0;
             END
 
             j := j + 1;
@@ -47,14 +42,12 @@ FUN bbSort(nums, len):
     RET nums;
 END
 
-LET count : 100, sample : makeNums(count), nums : NIL;
+LET count : 20, sample : makeNums(count);
 
 print("RAW:");
 print(sample);
 
-nums := bbSort(sample, count);
-
 print("SORTED:");
-print(nums);
+print(bbSort(sample, count));
 
 RET 0;

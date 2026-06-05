@@ -77,3 +77,5 @@ A very trivial scripting language implemented in C11. Only for educational purpo
 #### v0.10.x:
  - Add support for bytecode serialization / deserialization _with_ required author hash to run properly.
    - Invoke UB if incorrect.
+ - Add `make_runtime(...)` function. A completely initialized VM state is returned, and this will need a `Value tbasic_invoke(VMState *vm, const uint8_t *bc, size_t n);` that can be run N times on the VM without reconstruction.
+ - Add `__attribute((visibility("default")))` for exported symbols of shared library.

@@ -81,6 +81,7 @@ void symbol_table_clear(SymbolTable *self) {
         };
     }
 
+    self->length = 0;
     self->var_alloc_ip = 0;
     self->local_argc = 0,
     self->next_local_id = 0;
@@ -1363,8 +1364,14 @@ int8_t compiler_do_block(Compiler *self, Lexer *lexer, const charspan *s, Progra
     }
     compiler_eat_tk(self, lexer, s);
 
+    int stmt_count = 0;
+
     while (!compiler_match_curr(self, tk_eof)) {
         if (compiler_match_curr(self, tk_keyword_end)) {
+            if (stmt_count == 0) {
+                compiler_emit_op(self, pg, op_nop); // ? prevent empty bodies of conditional code which mess with jumps
+            }
+
             break;
         }
 
@@ -1373,6 +1380,8 @@ int8_t compiler_do_block(Compiler *self, Lexer *lexer, const charspan *s, Progra
             fprintf(stderr, "Note: See nested statement in block body around line %d.\n", stmt_line);
             return 0;
         }
+
+        stmt_count++;
     }
     compiler_eat_tk(self, lexer, s);
 
