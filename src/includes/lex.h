@@ -24,6 +24,8 @@ typedef enum token_tag_t {
     tk_integer,
     tk_real,
     tk_string,
+    tk_os_nullish,
+    tk_os_nullcol,
     tk_os_times,
     tk_os_slash,
     tk_os_plus,
@@ -67,7 +69,7 @@ static inline int8_t is_op_symbol(char c) {
     switch (c) {
         case '*': case '/': case '+': case '-': // arithmetic
         case '=': case '!': case '<': case '>': case '|': case '&': // comparisons / logicals
-        case ':': return 1; // extra
+        case ':': case '?': return 1; // extra
         default: return 0;
     }
 }

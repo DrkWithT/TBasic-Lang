@@ -42,6 +42,8 @@ SymbolTable make_symbol_table() {
             .infos = temp_infos,
             .length = 0,
             .capacity = DEFAULT_SYMBOL_CAPACITY,
+            .var_alloc_ip = 0,
+            .local_argc = 0,
             .next_local_id = 0,     // ? Start from BP since BP holds the callee... OLD + 1 --> new ID.
             .next_global_id = 1     // ? Start from 1 since chunks 1+ are for other procedures. 0 is the implicit main one.
         };
@@ -51,6 +53,8 @@ SymbolTable make_symbol_table() {
         .infos = NULL,
         .length = 0,
         .capacity = 0,
+        .var_alloc_ip = 0,
+        .local_argc = 0,
         .next_local_id = 0,
         .next_global_id = 1
     };
@@ -77,6 +81,8 @@ void symbol_table_clear(SymbolTable *self) {
         };
     }
 
+    self->var_alloc_ip = 0;
+    self->local_argc = 0,
     self->next_local_id = 0;
 }
 
@@ -268,6 +274,16 @@ size_t compiler_emit_op_flagged(Compiler *self, Program *pg, Opcode op, uint8_t 
     AnyVec_Instruction_push(code_ref, &temp);
 
     return AnyVec_Instruction_len(code_ref);
+}
+
+void compiler_patch_reserve_inst(Compiler *self, const SymbolTable *scope, Program *pg) {
+    const int reserver_ip = scope->var_alloc_ip;
+    const int16_t locals_from_params = scope->local_argc;
+
+    // fprintf(stdout, "Debug (compiler_patch_reserve_inst): reserver_ip = %d, locals_from_params = %d, SCOPE.next_local_id = %d\n", reserver_ip, locals_from_params, scope->next_local_id);
+
+    Chunk *current_chunk = AnyVec_Chunk_getm(&pg->chunks, self->chunk_idx);
+    current_chunk->code.data[reserver_ip].wide = scope->next_local_id - locals_from_params;
 }
 
 const SymbolInfo *compiler_resolve_name(const Compiler *self, const charspan *s) {
@@ -690,9 +706,59 @@ int8_t compiler_do_call(Compiler *self, Lexer *lexer, const charspan *s, Program
     return 1;
 }
 
+int8_t compiler_do_unary(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
+    if (compiler_match_curr(self, tk_os_nullish)) {
+        compiler_eat_tk(self, lexer, s);
+
+        if (!compiler_do_call(self, lexer, s, pg)) {
+            return 0;
+        }
+
+        compiler_emit_op(self, pg, op_chk_none);
+
+        return 1;
+    }
+
+    return compiler_do_call(self, lexer, s, pg);
+}
+
+int8_t compiler_do_null_coal(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
+    if (!compiler_do_unary(self, lexer, s, pg)) {
+        return 0;
+    }
+
+    if (!compiler_match_curr(self, tk_os_nullcol)) {
+        return 1;
+    }
+    compiler_eat_tk(self, lexer, s);
+
+    compiler_emit_op_unflagged(self, pg, op_chk_none, 0);
+
+    const uint16_t jump_nil_pos = pg->chunks.data[self->chunk_idx].code.length;
+    // ? Pop NIL value and the leftover null-flag from the stack to save space.
+    compiler_emit_op_unflagged(self, pg, op_jmp_false, 0);
+    compiler_emit_op_flagged(self, pg, op_pop, 1, 0);
+
+    if (!compiler_do_unary(self, lexer, s, pg)) {
+        return 0;
+    }
+
+    const uint16_t jump_past_pop_pos = pg->chunks.data[self->chunk_idx].code.length;
+    compiler_emit_op_flagged(self, pg, op_jmp, 0, 0);
+
+    const uint16_t jump_nil_end_pos = pg->chunks.data[self->chunk_idx].code.length;
+    pg->chunks.data[self->chunk_idx].code.data[jump_nil_pos].wide = jump_nil_end_pos - jump_nil_pos;
+    // ? Pop null-check false from the stack, exposing the LHS value for other code.
+    compiler_emit_op_flagged(self, pg, op_pop, 1, 0);
+
+    // ? Patch pop-skipping jump to avoid incorrectly popping a non-NIL RHS.
+    pg->chunks.data[self->chunk_idx].code.data[jump_past_pop_pos].wide = (jump_nil_end_pos + 1) - jump_past_pop_pos;
+
+    return 1;
+}
+
 int8_t compiler_do_factor(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
-    if (!compiler_do_call(self, lexer, s, pg)) {
-        fprintf(stderr, "Note: See factor LHS at line %d.\n", self->curr.line);
+    if (!compiler_do_null_coal(self, lexer, s, pg)) {
         return 0;
     }
 
@@ -712,8 +778,7 @@ int8_t compiler_do_factor(Compiler *self, Lexer *lexer, const charspan *s, Progr
         }
         compiler_eat_tk(self, lexer, s);
 
-        if (!compiler_do_call(self, lexer, s, pg)) {
-            fprintf(stderr, "Note: See factor RHS at line %d.\n", self->curr.line);
+        if (!compiler_do_null_coal(self, lexer, s, pg)) {
             return 0;
         }
         compiler_emit_op(self, pg, op);
@@ -724,7 +789,6 @@ int8_t compiler_do_factor(Compiler *self, Lexer *lexer, const charspan *s, Progr
 
 int8_t compiler_do_sum(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
     if (!compiler_do_factor(self, lexer, s, pg)) {
-        fprintf(stderr, "Note: See sum LHS at line %d.\n", self->curr.line);
         return 0;
     }
 
@@ -745,7 +809,6 @@ int8_t compiler_do_sum(Compiler *self, Lexer *lexer, const charspan *s, Program 
         compiler_eat_tk(self, lexer, s);
 
         if (!compiler_do_factor(self, lexer, s, pg)) {
-            fprintf(stderr, "Note: See sum RHS at line %d.\n", self->curr.line);
             return 0;
         }
         compiler_emit_op(self, pg, op);
@@ -756,7 +819,6 @@ int8_t compiler_do_sum(Compiler *self, Lexer *lexer, const charspan *s, Program 
 
 int8_t compiler_do_equality(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
     if (!compiler_do_sum(self, lexer, s, pg)) {
-        fprintf(stderr, "Note: See equality LHS at line %d.\n", self->curr.line);
         return 0;
     }
 
@@ -777,7 +839,6 @@ int8_t compiler_do_equality(Compiler *self, Lexer *lexer, const charspan *s, Pro
         compiler_eat_tk(self, lexer, s);
 
         if (!compiler_do_sum(self, lexer, s, pg)) {
-            fprintf(stderr, "Note: See equality RHS at line %d.\n", self->curr.line);
             return 0;
         }
         compiler_emit_op(self, pg, op);
@@ -788,7 +849,6 @@ int8_t compiler_do_equality(Compiler *self, Lexer *lexer, const charspan *s, Pro
 
 int8_t compiler_do_compare(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
     if (!compiler_do_equality(self, lexer, s, pg)) {
-        fprintf(stderr, "Note: See compare LHS at line %d.\n", self->curr.line);
         return 0;
     }
 
@@ -809,7 +869,6 @@ int8_t compiler_do_compare(Compiler *self, Lexer *lexer, const charspan *s, Prog
         compiler_eat_tk(self, lexer, s);
 
         if (!compiler_do_equality(self, lexer, s, pg)) {
-            fprintf(stderr, "Note: See compare RHS at line %d.\n", self->curr.line);
             return 0;
         }
         compiler_emit_op(self, pg, op);
@@ -820,7 +879,6 @@ int8_t compiler_do_compare(Compiler *self, Lexer *lexer, const charspan *s, Prog
 
 int8_t compiler_do_and(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
     if (!compiler_do_compare(self, lexer, s, pg)) {
-        fprintf(stderr, "Note: See and-expression LHS at line %d.\n", self->curr.line);
         return 0;
     }
 
@@ -829,16 +887,15 @@ int8_t compiler_do_and(Compiler *self, Lexer *lexer, const charspan *s, Program 
     }
     compiler_eat_tk(self, lexer, s);
 
-    const int16_t falsy_jmp_pos = pg->chunks.data[self->chunk_idx].code.length;
+    const uint16_t falsy_jmp_pos = pg->chunks.data[self->chunk_idx].code.length;
     compiler_emit_op_flagged(self, pg, op_jmp_false, 0, 0);
     compiler_emit_op_flagged(self, pg, op_pop, 1, 0); // ? Pop LHS if true, keeping our VM's "single result value" invariant.
 
     if (!compiler_do_compare(self, lexer, s, pg)) {
-        fprintf(stderr, "Note: See and-expression RHS at line %d.\n", self->curr.line);
         return 0;
     }
 
-    const int16_t falsy_jmp_end = pg->chunks.data[self->chunk_idx].code.length;
+    const uint16_t falsy_jmp_end = pg->chunks.data[self->chunk_idx].code.length;
     compiler_emit_op(self, pg, op_nop);
 
     pg->chunks.data[self->chunk_idx].code.data[falsy_jmp_pos].wide = falsy_jmp_end - falsy_jmp_pos;
@@ -848,7 +905,6 @@ int8_t compiler_do_and(Compiler *self, Lexer *lexer, const charspan *s, Program 
 
 int8_t compiler_do_or(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
     if (!compiler_do_and(self, lexer, s, pg)) {
-        fprintf(stderr, "Note: See or-expression LHS at line %d.\n", self->curr.line);
         return 0;
     }
 
@@ -857,16 +913,15 @@ int8_t compiler_do_or(Compiler *self, Lexer *lexer, const charspan *s, Program *
     }
     compiler_eat_tk(self, lexer, s);
 
-    const int16_t truthy_jmp_pos = pg->chunks.data[self->chunk_idx].code.length;
+    const uint16_t truthy_jmp_pos = pg->chunks.data[self->chunk_idx].code.length;
     compiler_emit_op_flagged(self, pg, op_jmp_if, 0, 0);
     compiler_emit_op_flagged(self, pg, op_pop, 1, 0); // ? Pop LHS if true, keeping our VM's "single result value" invariant.
 
     if (!compiler_do_and(self, lexer, s, pg)) {
-        fprintf(stderr, "Note: See or-expression RHS at line %d.\n", self->curr.line);
         return 0;
     }
 
-    const int16_t truthy_jmp_end = pg->chunks.data[self->chunk_idx].code.length;
+    const uint16_t truthy_jmp_end = pg->chunks.data[self->chunk_idx].code.length;
     compiler_emit_op(self, pg, op_nop);
 
     pg->chunks.data[self->chunk_idx].code.data[truthy_jmp_pos].wide = truthy_jmp_end - truthy_jmp_pos;
@@ -904,6 +959,7 @@ int8_t compiler_do_vars(Compiler *self, Lexer *lexer, const charspan *s, Program
         if (!compiler_do_or(self, lexer, s, pg)) {
             return 0;
         }
+        compiler_emit_op_unflagged(self, pg, op_store_local, var_locus->id);
 
         if (compiler_match_curr(self, tk_comma)) {
             compiler_eat_tk(self, lexer, s);
@@ -920,21 +976,19 @@ int8_t compiler_do_ifs(Compiler *self, Lexer *lexer, const charspan *s, Program 
 
     const int cmp_line = self->curr.line;
     if (!compiler_do_or(self, lexer, s, pg)) {
-        fprintf(stderr, "Note: See if-statement at line %d.\n", cmp_line);
         return 0;
     }
 
-    const int16_t jump_else_pos = pg->chunks.data[self->chunk_idx].code.length;
+    const uint16_t jump_else_pos = pg->chunks.data[self->chunk_idx].code.length;
     compiler_emit_op_flagged(self, pg, op_jmp_false, 0, 0);
     compiler_emit_op_flagged(self, pg, op_pop, 1, 0);
 
     if (!compiler_do_block(self, lexer, s, pg)) {
-        fprintf(stderr, "Note: See if-statement in truthy-block around line #%d.\n", self->prev.line);
         return 0;
     }
 
     if (!compiler_match_curr(self, tk_keyword_else)) {
-        const int16_t skip_tbody_pos = pg->chunks.data[self->chunk_idx].code.length;
+        const uint16_t skip_tbody_pos = pg->chunks.data[self->chunk_idx].code.length;
         compiler_emit_op_unflagged(self, pg, op_nop, 0);
 
         pg->chunks.data[self->chunk_idx].code.data[jump_else_pos].wide = skip_tbody_pos - jump_else_pos;
@@ -945,16 +999,16 @@ int8_t compiler_do_ifs(Compiler *self, Lexer *lexer, const charspan *s, Program 
     // * BEGIN ELSE clause ... * //
     compiler_eat_tk(self, lexer, s); // ? consume leading 'ELSE' of ELSE body
 
-    const int16_t jump_skip_else_pos = pg->chunks.data[self->chunk_idx].code.length;
+    const uint16_t jump_skip_else_pos = pg->chunks.data[self->chunk_idx].code.length;
     compiler_emit_op_unflagged(self, pg, op_jmp, 0);
 
-    const int16_t begin_else_pos = jump_skip_else_pos + 1;
+    const uint16_t begin_else_pos = jump_skip_else_pos + 1;
     if (!compiler_do_nestable_stmt(self, lexer, s, pg)) {
         fprintf(stderr, "Note: See else-clause in the falsy-body around line %d.\n", self->curr.line);
         return 0;
     }
 
-    const int16_t end_ifs_pos = pg->chunks.data[self->chunk_idx].code.length;
+    const uint16_t end_ifs_pos = pg->chunks.data[self->chunk_idx].code.length;
     compiler_emit_op(self, pg, op_nop);
 
     pg->chunks.data[self->chunk_idx].code.data[jump_else_pos].wide = begin_else_pos - jump_else_pos;
@@ -968,14 +1022,14 @@ int8_t compiler_do_while(Compiler *self, Lexer *lexer, const charspan *s, Progra
 
     ActiveLoop *loop_data = compiler_enter_loop(self);
 
-    const int16_t while_check_pos = pg->chunks.data[self->chunk_idx].code.length;
+    const uint16_t while_check_pos = pg->chunks.data[self->chunk_idx].code.length;
     if (!compiler_do_or(self, lexer, s, pg)) {
         fprintf(stderr, "Note: See while-loop condition around line %d.\n", self->curr.line);
         compiler_leave_loop(self);
         return 0;
     }
 
-    const int16_t while_jmp_out_pos = pg->chunks.data[self->chunk_idx].code.length;
+    const uint16_t while_jmp_out_pos = pg->chunks.data[self->chunk_idx].code.length;
     compiler_emit_op_flagged(self, pg, op_jmp_false, 0, 0); // ? flags = 0 ==> forward jump applies!
 
     if (!compiler_do_block(self, lexer, s, pg)) {
@@ -985,9 +1039,9 @@ int8_t compiler_do_while(Compiler *self, Lexer *lexer, const charspan *s, Progra
     }
 
     // ? 1. Patch 2 main loop jumps: the repeat & exit...
-    const int16_t while_jmp_back_pos = pg->chunks.data[self->chunk_idx].code.length;
+    const uint16_t while_jmp_back_pos = pg->chunks.data[self->chunk_idx].code.length;
     compiler_emit_op_flagged(self, pg, op_jmp, 1, 0); // ? flags = 1 ==> backwards jump applies!
-    const int16_t while_exit_pos = pg->chunks.data[self->chunk_idx].code.length;
+    const uint16_t while_exit_pos = pg->chunks.data[self->chunk_idx].code.length;
     compiler_emit_op_flagged(self, pg, op_pop, 1, 0); // ? pop off check after loop quits WHEN it's FALSE
 
     pg->chunks.data[self->chunk_idx].code.data[while_jmp_back_pos].wide = while_jmp_back_pos - while_check_pos;
@@ -1074,14 +1128,14 @@ int8_t compiler_do_for(Compiler *self, Lexer *lexer, const charspan *s, Program 
     }
     compiler_eat_tk(self, lexer, s);
 
-    const int loop_begin_pos = pg->chunks.data[self->chunk_idx].code.length;
+    const uint16_t loop_begin_pos = pg->chunks.data[self->chunk_idx].code.length;
     if (!compiler_do_or(self, lexer, s, pg)) {
         fprintf(stderr, "\tNote: invalid condition of FOR loop around line %d.\n", self->prev.line);
 
         compiler_leave_loop(self);
         return 0;
     }
-    const int loop_jump_out_pos = pg->chunks.data[self->chunk_idx].code.length;
+    const uint16_t loop_jump_out_pos = pg->chunks.data[self->chunk_idx].code.length;
     compiler_emit_op_unflagged(self, pg, op_jmp_false, 0);
 
     if (!compiler_match_curr(self, tk_comma)) {
@@ -1091,10 +1145,10 @@ int8_t compiler_do_for(Compiler *self, Lexer *lexer, const charspan *s, Program 
     }
     compiler_eat_tk(self, lexer, s);
 
-    const int loop_skip_update_pos = pg->chunks.data[self->chunk_idx].code.length;
+    const uint16_t loop_skip_update_pos = pg->chunks.data[self->chunk_idx].code.length;
     compiler_emit_op_unflagged(self, pg, op_jmp, 0);
 
-    const int loop_start_update_pos = pg->chunks.data[self->chunk_idx].code.length;
+    const uint16_t loop_start_update_pos = pg->chunks.data[self->chunk_idx].code.length;
     compiler_emit_op_unflagged(self, pg, op_nop, 0);
     if (!compiler_do_expr_stmt(self, lexer, s, pg)) {
         fprintf(stderr, "\tNote: invalid update clause of FOR loop around line %d.\n", self->prev.line);
@@ -1103,7 +1157,7 @@ int8_t compiler_do_for(Compiler *self, Lexer *lexer, const charspan *s, Program 
         return 0;
     }
     // ? Emit & easily patch "loop-repeater" jump AFTER update evaluations...
-    const int loop_repeater_pos = pg->chunks.data[self->chunk_idx].code.length;
+    const uint16_t loop_repeater_pos = pg->chunks.data[self->chunk_idx].code.length;
     compiler_emit_op_flagged(self, pg, op_jmp, 1, loop_repeater_pos - loop_begin_pos);
     // ? Patch the jump at loop_skip_update_pos since the update clause was fully resolved here...
     pg->chunks.data[self->chunk_idx].code.data[loop_skip_update_pos].wide = loop_repeater_pos + 1 - loop_skip_update_pos;
@@ -1116,11 +1170,11 @@ int8_t compiler_do_for(Compiler *self, Lexer *lexer, const charspan *s, Program 
     }
 
     // ? Patch returning jump to update clause after body evaluation...
-    const int loop_jump_to_update_pos = pg->chunks.data[self->chunk_idx].code.length;
+    const uint16_t loop_jump_to_update_pos = pg->chunks.data[self->chunk_idx].code.length;
     compiler_emit_op_flagged(self, pg, op_jmp, 1, loop_jump_to_update_pos - loop_start_update_pos);
 
     // ? Patch checked-jump to loop exiting position here since the body is resolved then...
-    const int loop_end_pos = pg->chunks.data[self->chunk_idx].code.length;
+    const uint16_t loop_end_pos = pg->chunks.data[self->chunk_idx].code.length;
     compiler_emit_op(self, pg, op_nop);
     pg->chunks.data[self->chunk_idx].code.data[loop_jump_out_pos].wide = loop_end_pos - loop_jump_out_pos;
 
@@ -1367,7 +1421,10 @@ int8_t compiler_do_func(Compiler *self, Lexer *lexer, const charspan *s, Program
             .data = s->data + self->curr.begin,
             .length = self->curr.length
         };
+        
         compiler_record_local(self, pg, &param_name);
+        self->locals.local_argc++;
+
         compiler_eat_tk(self, lexer, s);
 
         if (compiler_match_curr(self, tk_comma)) {
@@ -1376,10 +1433,14 @@ int8_t compiler_do_func(Compiler *self, Lexer *lexer, const charspan *s, Program
     }
     compiler_eat_tk(self, lexer, s);
 
+    self->locals.var_alloc_ip = pg->chunks.data[self->chunk_idx].code.length;
+    compiler_emit_op_unflagged(self, pg, op_reserve, 0);
+
     if (!compiler_do_block(self, lexer, s, pg)) {
         fprintf(stderr, "Note: See in FUN declaration around line %d.\n", self->curr.line);
         return 0;
     } else {
+        compiler_patch_reserve_inst(self, &self->locals, pg);
         symbol_table_clear(&self->locals);
         self->chunk_idx = 0;
     }
@@ -1414,6 +1475,9 @@ int8_t compiler_do_source(Compiler *self, Lexer *lexer, const charspan *s, Progr
     Chunk_new(&temp); // ? initialize empty chunk
     AnyVec_Chunk_push(&pg->chunks, &temp); // ? copy the empty chunk into this Vec, but don't touch temp again... just did scuffed destructive moves??
 
+    self->locals.var_alloc_ip = pg->chunks.data[self->chunk_idx].code.length;
+    compiler_emit_op_unflagged(self, pg, op_reserve, 0);
+
     while (!compiler_match_curr(self, tk_eof)) {
         if (!compiler_do_stmt(self, lexer, s, pg)) {
             // ? Recover parsing by skipping to a LET declaration as a synchronization point.
@@ -1428,8 +1492,10 @@ int8_t compiler_do_source(Compiler *self, Lexer *lexer, const charspan *s, Progr
     }
 
     compiler_emit_op(self, pg, op_ret); // ! NOTE: emit a redundant RET in case the user forgets one- otherwise the VM reads an invalid IP!
-    pg->entry_id = 0;
+    compiler_patch_reserve_inst(self, &self->locals, pg);
 
+    pg->entry_id = 0;
+    
     fprintf(stderr, "Compilation finished with \x1b[1;31m%d\x1b[0m errors.\n\n", self->errors);
 
     return self->errors == 0;

@@ -20,7 +20,7 @@ int main(int argc, char *argv[]) {
     int8_t allow_run = 0;
 
     if (argc < 2) {
-        fprintf(stderr, "Too few arguments, try ./tbasic -i for information.\n");
+        fprintf(stderr, "Too few arguments. Try ./tbasic -i for information.\n");
         return 1;
     }
 
@@ -37,8 +37,8 @@ int main(int argc, char *argv[]) {
         .heap_capacity = CONFIG_DEFAULT_VM_HEAP_POPULATION,
         .recursion_max = CONFIG_DEFAULT_VM_RECUR_LIMIT,
         .version_major = 0,
-        .version_minor = 6,
-        .version_patch = 2
+        .version_minor = 8,
+        .version_patch = 1
     };
 
     Driver app;

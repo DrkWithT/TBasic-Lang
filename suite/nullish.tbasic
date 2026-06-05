@@ -1,0 +1,13 @@
+`test nullish op`
+
+LET ok : 0, x : NIL, a : [1];
+
+IF ?x:
+    ok := ok + 1;
+END
+
+IF ?a[1]:
+    ok := ok + 1;
+END
+
+RET ok == 2;

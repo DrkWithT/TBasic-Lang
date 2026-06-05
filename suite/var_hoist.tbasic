@@ -1,0 +1,15 @@
+LET a : 1, chk : FALSE;
+
+IF a == 1:
+    LET b : 2;
+
+    IF b == 2:
+        LET c : 3;
+
+        IF c == 3:
+            chk := TRUE;
+        END
+    END
+END
+
+RET chk;

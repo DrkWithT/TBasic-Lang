@@ -37,6 +37,7 @@ typedef enum vm_opcode_t : uint8_t {
     op_nop,
     op_put_none,
     op_put_bool,
+    op_reserve,         // ? loads N NIL values when a function starts, reserving space for hoisted variables
     op_load_imm_gid,    // ? loads an immediate procedure ID --> chunk ID to dispatch to.
     op_load_local,
     op_store_local,
@@ -48,6 +49,7 @@ typedef enum vm_opcode_t : uint8_t {
     op_mk_dict,
     op_get_idx,
     op_set_idx,
+    op_chk_none,      // ? checks if a value is NIL
     op_mul,
     op_div,
     op_add,

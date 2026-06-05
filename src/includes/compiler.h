@@ -33,6 +33,8 @@ typedef struct symbol_table_t {
     SymbolInfo *infos;
     int length;
     int capacity;
+    int var_alloc_ip;       // ? marks where a RESERVE (n) instruction is
+    int16_t local_argc;     // ? count of parameter locals
     int16_t next_local_id;      // ? reused for local IDs
     int16_t next_global_id;     // ? reused for global / constant IDs
 } SymbolTable;
@@ -102,6 +104,8 @@ size_t compiler_emit_op(Compiler *self, Program *pg, Opcode op);
 size_t compiler_emit_op_unflagged(Compiler *self, Program *pg, Opcode op, int16_t wide);
 size_t compiler_emit_op_flagged(Compiler *self, Program *pg, Opcode op, uint8_t flags, int16_t wide);
 
+void compiler_patch_reserve_inst(Compiler *self, const SymbolTable *scope, Program *pg);
+
 const SymbolInfo *compiler_resolve_name(const Compiler *self, const charspan *s);
 const SymbolInfo *compiler_record_function(Compiler *self, Program *pg, const charspan *s, int chunk_id);
 const SymbolInfo *compiler_record_local(Compiler *self, Program *pg, const charspan *s);
@@ -118,6 +122,8 @@ int8_t compiler_do_dict(Compiler *self, Lexer *lexer, const charspan *s, Program
 int8_t compiler_do_literal(Compiler *self, Lexer *lexer, const charspan *s, Program *pg);
 int8_t compiler_do_lhs(Compiler *self, Lexer *lexer, const charspan *s, Program *pg);
 int8_t compiler_do_call(Compiler *self, Lexer *lexer, const charspan *s, Program *pg);
+int8_t compiler_do_unary(Compiler *self, Lexer *lexer, const charspan *s, Program *pg);
+int8_t compiler_do_null_coal(Compiler *self, Lexer *lexer, const charspan *s, Program *pg);
 int8_t compiler_do_factor(Compiler *self, Lexer *lexer, const charspan *s, Program *pg);
 int8_t compiler_do_sum(Compiler *self, Lexer *lexer, const charspan *s, Program *pg);
 int8_t compiler_do_equality(Compiler *self, Lexer *lexer, const charspan *s, Program *pg);
