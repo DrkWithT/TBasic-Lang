@@ -56,7 +56,11 @@ int8_t charspan_equals_charspan(const charspan *self, const charspan *other) {
         return 0;
     }
 
-    return !strncmp(self->data, other->data, self->length);
+    if (self->data != NULL && other->data != NULL) {
+        return !strncmp(self->data, other->data, self->length);
+    }
+
+    return 0;
 }
 
 
