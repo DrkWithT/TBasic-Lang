@@ -42,6 +42,8 @@ SymbolTable make_symbol_table() {
             .infos = temp_infos,
             .length = 0,
             .capacity = DEFAULT_SYMBOL_CAPACITY,
+            .var_alloc_ip = 0,
+            .local_argc = 0,
             .next_local_id = 0,     // ? Start from BP since BP holds the callee... OLD + 1 --> new ID.
             .next_global_id = 1     // ? Start from 1 since chunks 1+ are for other procedures. 0 is the implicit main one.
         };
@@ -51,6 +53,8 @@ SymbolTable make_symbol_table() {
         .infos = NULL,
         .length = 0,
         .capacity = 0,
+        .var_alloc_ip = 0,
+        .local_argc = 0,
         .next_local_id = 0,
         .next_global_id = 1
     };
@@ -77,6 +81,8 @@ void symbol_table_clear(SymbolTable *self) {
         };
     }
 
+    self->var_alloc_ip = 0;
+    self->local_argc = 0,
     self->next_local_id = 0;
 }
 
@@ -268,6 +274,16 @@ size_t compiler_emit_op_flagged(Compiler *self, Program *pg, Opcode op, uint8_t 
     AnyVec_Instruction_push(code_ref, &temp);
 
     return AnyVec_Instruction_len(code_ref);
+}
+
+void compiler_patch_reserve_inst(Compiler *self, const SymbolTable *scope, Program *pg) {
+    const int reserver_ip = scope->var_alloc_ip;
+    const int16_t locals_from_params = scope->local_argc;
+
+    // fprintf(stdout, "Debug (compiler_patch_reserve_inst): reserver_ip = %d, locals_from_params = %d, SCOPE.next_local_id = %d\n", reserver_ip, locals_from_params, scope->next_local_id);
+
+    Chunk *current_chunk = AnyVec_Chunk_getm(&pg->chunks, self->chunk_idx);
+    current_chunk->code.data[reserver_ip].wide = scope->next_local_id - locals_from_params;
 }
 
 const SymbolInfo *compiler_resolve_name(const Compiler *self, const charspan *s) {
@@ -943,6 +959,7 @@ int8_t compiler_do_vars(Compiler *self, Lexer *lexer, const charspan *s, Program
         if (!compiler_do_or(self, lexer, s, pg)) {
             return 0;
         }
+        compiler_emit_op_unflagged(self, pg, op_store_local, var_locus->id);
 
         if (compiler_match_curr(self, tk_comma)) {
             compiler_eat_tk(self, lexer, s);
@@ -1404,7 +1421,10 @@ int8_t compiler_do_func(Compiler *self, Lexer *lexer, const charspan *s, Program
             .data = s->data + self->curr.begin,
             .length = self->curr.length
         };
+        
         compiler_record_local(self, pg, &param_name);
+        self->locals.local_argc++;
+
         compiler_eat_tk(self, lexer, s);
 
         if (compiler_match_curr(self, tk_comma)) {
@@ -1413,10 +1433,14 @@ int8_t compiler_do_func(Compiler *self, Lexer *lexer, const charspan *s, Program
     }
     compiler_eat_tk(self, lexer, s);
 
+    self->locals.var_alloc_ip = pg->chunks.data[self->chunk_idx].code.length;
+    compiler_emit_op_unflagged(self, pg, op_reserve, 0);
+
     if (!compiler_do_block(self, lexer, s, pg)) {
         fprintf(stderr, "Note: See in FUN declaration around line %d.\n", self->curr.line);
         return 0;
     } else {
+        compiler_patch_reserve_inst(self, &self->locals, pg);
         symbol_table_clear(&self->locals);
         self->chunk_idx = 0;
     }
@@ -1451,6 +1475,9 @@ int8_t compiler_do_source(Compiler *self, Lexer *lexer, const charspan *s, Progr
     Chunk_new(&temp); // ? initialize empty chunk
     AnyVec_Chunk_push(&pg->chunks, &temp); // ? copy the empty chunk into this Vec, but don't touch temp again... just did scuffed destructive moves??
 
+    self->locals.var_alloc_ip = pg->chunks.data[self->chunk_idx].code.length;
+    compiler_emit_op_unflagged(self, pg, op_reserve, 0);
+
     while (!compiler_match_curr(self, tk_eof)) {
         if (!compiler_do_stmt(self, lexer, s, pg)) {
             // ? Recover parsing by skipping to a LET declaration as a synchronization point.
@@ -1465,8 +1492,10 @@ int8_t compiler_do_source(Compiler *self, Lexer *lexer, const charspan *s, Progr
     }
 
     compiler_emit_op(self, pg, op_ret); // ! NOTE: emit a redundant RET in case the user forgets one- otherwise the VM reads an invalid IP!
-    pg->entry_id = 0;
+    compiler_patch_reserve_inst(self, &self->locals, pg);
 
+    pg->entry_id = 0;
+    
     fprintf(stderr, "Compilation finished with \x1b[1;31m%d\x1b[0m errors.\n\n", self->errors);
 
     return self->errors == 0;
