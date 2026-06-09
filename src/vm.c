@@ -40,6 +40,18 @@ static OpFunc opcode_handlers[] = {
     fn_ret,
     fn_raise_err,
     fn_catch_err,
+    fn_mul_kl,
+    fn_div_kl,
+    fn_add_kl,
+    fn_sub_kl,
+    fn_mul_kk,
+    fn_div_kk,
+    fn_add_kk,
+    fn_sub_kk,
+    fn_mul_ll,
+    fn_div_ll,
+    fn_add_ll,
+    fn_sub_ll,
 };
 
 // ! Editable VM dispatch function pointer: If an exception is thrown, this may be set to `vm_seek_catch`!
@@ -719,6 +731,342 @@ VMStatus fn_raise_err(VMState *s, const Instruction *ip, const Value *cvp, Value
 VMStatus fn_catch_err(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
     s->status = vm_status_pending;
     dispatcher = vm_dispatch;
+
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_mul_kl(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    const Value lhs = stack[s->bp + ip->wide];
+    const Value rhs = cvp[ip->flag];
+
+    s->sp++;
+
+    if (lhs.tag != rhs.tag) {
+        stack[s->sp] = make_value_real(NAN);
+    } else {
+        switch (lhs.tag) {
+        case vtag_int:
+            stack[s->sp] = make_value_int(lhs.data.i * rhs.data.i);
+            break;
+        case vtag_real:
+            stack[s->sp] = make_value_real(lhs.data.f * rhs.data.f);
+            break;
+        default:
+            stack[s->sp] = make_value_real(NAN);
+            break;
+        }
+    }
+
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_div_kl(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    const Value lhs = stack[s->bp + ip->wide];
+    const Value rhs = cvp[ip->flag];
+
+    s->sp++;
+
+    if (lhs.tag != rhs.tag) {
+        stack[s->sp] = make_value_real(NAN);
+    } else {
+        switch (lhs.tag) {
+        case vtag_int:
+            stack[s->sp] = (rhs.data.i != 0) ? make_value_int(lhs.data.i / rhs.data.i) : make_value_real(NAN);
+            break;
+        case vtag_real:
+            stack[s->sp] = (rhs.data.f != 0.0f) ? make_value_real(lhs.data.f / rhs.data.f) : make_value_real(NAN);
+            break;
+        default:
+            stack[s->sp] = make_value_real(NAN);
+            break;
+        }
+    }
+
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_add_kl(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    const Value lhs = stack[s->bp + ip->wide];
+    const Value rhs = cvp[ip->flag];
+
+    s->sp++;
+
+    if (lhs.tag != rhs.tag) {
+        stack[s->sp] = make_value_real(NAN);
+    } else {
+        switch (lhs.tag) {
+        case vtag_int:
+            stack[s->sp] = make_value_int(lhs.data.i + rhs.data.i);
+            break;
+        case vtag_real:
+            stack[s->sp] = make_value_real(lhs.data.f + rhs.data.f);
+            break;
+        default:
+            stack[s->sp] = make_value_real(NAN);
+            break;
+        }
+    }
+
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_sub_kl(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    const Value lhs = stack[s->bp + ip->wide];
+    const Value rhs = cvp[ip->flag];
+
+    s->sp++;
+
+    if (lhs.tag != rhs.tag) {
+        stack[s->sp] = make_value_real(NAN);
+    } else {
+        switch (lhs.tag) {
+        case vtag_int:
+            stack[s->sp] = make_value_int(lhs.data.i - rhs.data.i);
+            break;
+        case vtag_real:
+            stack[s->sp] = make_value_real(lhs.data.f - rhs.data.f);
+            break;
+        default:
+            stack[s->sp] = make_value_real(NAN);
+            break;
+        }
+    }
+
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_mul_kk(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    const Value lhs = cvp[ip->flag];
+    const Value rhs = cvp[ip->wide];
+
+    s->sp++;
+
+    if (lhs.tag != rhs.tag) {
+        stack[s->sp] = make_value_real(NAN);
+    } else {
+        switch (lhs.tag) {
+        case vtag_int:
+            stack[s->sp] = make_value_int(lhs.data.i * rhs.data.i);
+            break;
+        case vtag_real:
+            stack[s->sp] = make_value_real(lhs.data.f * rhs.data.f);
+            break;
+        default:
+            stack[s->sp] = make_value_real(NAN);
+            break;
+        }
+    }
+
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_div_kk(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    const Value lhs = cvp[ip->flag];
+    const Value rhs = cvp[ip->wide];
+
+    s->sp++;
+
+    if (lhs.tag != rhs.tag) {
+        stack[s->sp] = make_value_real(NAN);
+    } else {
+        switch (lhs.tag) {
+        case vtag_int:
+            stack[s->sp] = (rhs.data.i != 0) ? make_value_int(lhs.data.i / rhs.data.i) : make_value_real(NAN);
+            break;
+        case vtag_real:
+            stack[s->sp] = (rhs.data.f != 0.0f) ? make_value_real(lhs.data.f / rhs.data.f) : make_value_real(NAN);
+            break;
+        default:
+            stack[s->sp] = make_value_real(NAN);
+            break;
+        }
+    }
+
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_add_kk(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    const Value lhs = cvp[ip->flag];
+    const Value rhs = cvp[ip->wide];
+
+    s->sp++;
+
+    if (lhs.tag != rhs.tag) {
+        stack[s->sp] = make_value_real(NAN);
+    } else {
+        switch (lhs.tag) {
+        case vtag_int:
+            stack[s->sp] = make_value_int(lhs.data.i + rhs.data.i);
+            break;
+        case vtag_real:
+            stack[s->sp] = make_value_real(lhs.data.f + rhs.data.f);
+            break;
+        default:
+            stack[s->sp] = make_value_real(NAN);
+            break;
+        }
+    }
+
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_sub_kk(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    const Value lhs = cvp[ip->flag];
+    const Value rhs = cvp[ip->wide];
+
+    s->sp++;
+
+    if (lhs.tag != rhs.tag) {
+        stack[s->sp] = make_value_real(NAN);
+    } else {
+        switch (lhs.tag) {
+        case vtag_int:
+            stack[s->sp] = make_value_int(lhs.data.i - rhs.data.i);
+            break;
+        case vtag_real:
+            stack[s->sp] = make_value_real(lhs.data.f - rhs.data.f);
+            break;
+        default:
+            stack[s->sp] = make_value_real(NAN);
+            break;
+        }
+    }
+
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_mul_ll(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    const Value lhs = stack[s->bp + ip->flag];
+    const Value rhs = stack[s->bp + ip->wide];
+
+    s->sp++;
+
+    if (lhs.tag != rhs.tag) {
+        stack[s->sp] = make_value_real(NAN);
+    } else {
+        switch (lhs.tag) {
+        case vtag_int:
+            stack[s->sp] = make_value_int(lhs.data.i * rhs.data.i);
+            break;
+        case vtag_real:
+            stack[s->sp] = make_value_real(lhs.data.f * rhs.data.f);
+            break;
+        default:
+            stack[s->sp] = make_value_real(NAN);
+            break;
+        }
+    }
+
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_div_ll(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    const Value lhs = stack[s->bp + ip->flag];
+    const Value rhs = stack[s->bp + ip->wide];
+
+    s->sp++;
+
+    if (lhs.tag != rhs.tag) {
+        stack[s->sp] = make_value_real(NAN);
+    } else {
+        switch (lhs.tag) {
+        case vtag_int:
+            stack[s->sp] = (rhs.data.i != 0) ? make_value_int(lhs.data.i / rhs.data.i) : make_value_real(NAN);
+            break;
+        case vtag_real:
+            stack[s->sp] = (rhs.data.f != 0.0f) ? make_value_real(lhs.data.f / rhs.data.f) : make_value_real(NAN);
+            break;
+        default:
+            stack[s->sp] = make_value_real(NAN);
+            break;
+        }
+    }
+
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_add_ll(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    const Value lhs = stack[s->bp + ip->flag];
+    const Value rhs = stack[s->bp + ip->wide];
+
+    s->sp++;
+
+    if (lhs.tag != rhs.tag) {
+        stack[s->sp] = make_value_real(NAN);
+    } else {
+        switch (lhs.tag) {
+        case vtag_int:
+            stack[s->sp] = make_value_int(lhs.data.i + rhs.data.i);
+            break;
+        case vtag_real:
+            stack[s->sp] = make_value_real(lhs.data.f + rhs.data.f);
+            break;
+        default:
+            stack[s->sp] = make_value_real(NAN);
+            break;
+        }
+    }
+
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_sub_ll(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    const Value dest = stack[s->bp + ip->flag];
+    const Value rhs = stack[s->bp + ip->wide];
+
+    s->sp++;
+
+    if (dest.tag != rhs.tag) {
+        stack[s->sp] = make_value_real(NAN);
+    } else {
+        switch (dest.tag) {
+        case vtag_int:
+            stack[s->sp] = make_value_int(dest.data.i - rhs.data.i);
+            break;
+        case vtag_real:
+            stack[s->sp] = make_value_real(dest.data.f - rhs.data.f);
+            break;
+        default:
+            stack[s->sp] = make_value_real(NAN);
+            break;
+        }
+    }
 
     ip++;
 
