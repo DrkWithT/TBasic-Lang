@@ -67,6 +67,20 @@ typedef enum vm_opcode_t : uint8_t {
     op_ret,
     op_raise_err,
     op_catch_err,
+#pragma region SUPER_OPCODES
+    op_mul_kl,
+    op_div_kl,
+    op_add_kl,
+    op_sub_kl,
+    op_mul_kk,
+    op_div_kk,
+    op_add_kk,
+    op_sub_kk,
+    op_mul_ll,
+    op_div_ll,
+    op_add_ll,
+    op_sub_ll,
+#pragma endregion SUPER_OPCODES
 } Opcode;
 
 typedef struct code_vec_t {

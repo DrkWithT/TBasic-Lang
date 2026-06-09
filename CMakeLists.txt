@@ -55,6 +55,7 @@ else ()
         "${PROJECT_SOURCES}/gc.c"
         "${PROJECT_SOURCES}/bytecode.c"
         "${PROJECT_SOURCES}/compiler.c"
+        "${PROJECT_SOURCES}/optimizer.c"
         "${PROJECT_SOURCES}/vm.c"
         "${PROJECT_SOURCES}/driver.c"
     )
