@@ -63,6 +63,19 @@ VMStatus fn_catch_err(VMState *, const Instruction *, const Value *, Value *);
 VMStatus vm_dispatch(VMState *s, const Instruction *ip, const Value *cvp, Value *stack);
 VMStatus vm_seek_catch(VMState *s, const Instruction *ip, const Value *cvp, Value *stack);
 
+VMStatus fn_mul_kl(VMState *s, const Instruction *ip, const Value *cvp, Value *stack);
+VMStatus fn_div_kl(VMState *s, const Instruction *ip, const Value *cvp, Value *stack);
+VMStatus fn_add_kl(VMState *s, const Instruction *ip, const Value *cvp, Value *stack);
+VMStatus fn_sub_kl(VMState *s, const Instruction *ip, const Value *cvp, Value *stack);
+VMStatus fn_mul_kk(VMState *s, const Instruction *ip, const Value *cvp, Value *stack);
+VMStatus fn_div_kk(VMState *s, const Instruction *ip, const Value *cvp, Value *stack);
+VMStatus fn_add_kk(VMState *s, const Instruction *ip, const Value *cvp, Value *stack);
+VMStatus fn_sub_kk(VMState *s, const Instruction *ip, const Value *cvp, Value *stack);
+VMStatus fn_mul_ll(VMState *s, const Instruction *ip, const Value *cvp, Value *stack);
+VMStatus fn_div_ll(VMState *s, const Instruction *ip, const Value *cvp, Value *stack);
+VMStatus fn_add_ll(VMState *s, const Instruction *ip, const Value *cvp, Value *stack);
+VMStatus fn_sub_ll(VMState *s, const Instruction *ip, const Value *cvp, Value *stack);
+
 
 
 // ? Main VM state. Tracks stack state and refers to a current bytecode chunk for dispatch.
@@ -71,8 +84,8 @@ typedef struct vm_state_t {
     GCState gc;
     const NativeFn *native_table;
     const Program *prgm;
-    const Instruction *ip;
-    const Value *cvp;
+    // const Instruction *ip;
+    // const Value *cvp;
     Value *stack;
     int sp;
     int bp;
@@ -91,7 +104,7 @@ Value vm_result(const VMState *s);
 
 int8_t vm_raise_error_with_data(VMState *s, uint16_t line, const Value* data);
 
-void vm_locally_propagate_error(VMState *s);
+const Instruction *vm_locally_propagate_error(const Instruction *old_ip);
 
 VMStatus vm_run(VMState *s);
 

@@ -71,8 +71,8 @@ A very trivial scripting language implemented in C11. Only for educational purpo
    - Add `RESERVE` opcode.
    - Change variable generations to set a local offset in the RESERVE-d stack slots upon assignment or initialization.
    - Implement `RESERVE` opcode.
- - Add try-catch & exceptions.
- - Add tuples.
+ - Add try-catch & exceptions. **OK**
+ - Add bytecode optimization pass with super-instructions. **OK**
 
 #### v0.10.x:
  - Add support for bytecode serialization / deserialization _with_ required author hash to run properly.
