@@ -151,7 +151,7 @@ int driver_run(Driver *d, const char *file_path) {
             d->config.title,
             d->config.version_major, d->config.version_minor, d->config.version_patch
         );
-        printf("usage: ./tbasic [-i | [-d | -r] <file name>]\n\t-i: show usage and version\n");
+        printf("usage: ./tbasic [-i | [-d | -r] <file name>]\n\t-i: show usage and version\n\t-d: display bytecode\n\t-r: run script\n");
         return 0;
     }
 

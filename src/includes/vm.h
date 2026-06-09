@@ -71,8 +71,8 @@ typedef struct vm_state_t {
     GCState gc;
     const NativeFn *native_table;
     const Program *prgm;
-    const Instruction *ip;
-    const Value *cvp;
+    // const Instruction *ip;
+    // const Value *cvp;
     Value *stack;
     int sp;
     int bp;
@@ -91,7 +91,7 @@ Value vm_result(const VMState *s);
 
 int8_t vm_raise_error_with_data(VMState *s, uint16_t line, const Value* data);
 
-void vm_locally_propagate_error(VMState *s);
+const Instruction *vm_locally_propagate_error(const Instruction *old_ip);
 
 VMStatus vm_run(VMState *s);
 
