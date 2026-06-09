@@ -539,6 +539,10 @@ int8_t compiler_do_literal(Compiler *self, Lexer *lexer, const charspan *s, Prog
             );
             compiler_eat_tk(self, lexer, s);
             break;
+        case tk_keyword_err:
+            compiler_eat_tk(self, lexer, s); // ? skip 'ERR'
+            compiler_emit_op(self, pg, op_load_err_ref);
+            return 1;
         case tk_identifier:
             temp_locus = compiler_resolve_name(
                 self,
@@ -1266,6 +1270,55 @@ int8_t compiler_do_ret(Compiler *self, Lexer *lexer, const charspan *s, Program 
     return 1;
 }
 
+int8_t compiler_do_throw(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
+    const int throw_stmt_line = self->curr.line;
+    compiler_eat_tk(self, lexer, s); // ? skip 'THROW'
+
+    if (!compiler_do_or(self, lexer, s, pg)) {
+        return 0;
+    }
+
+    compiler_emit_op_unflagged(self, pg, op_raise_err, throw_stmt_line);
+
+    if (!compiler_match_curr(self, tk_semicolon)) {
+        compiler_warn(self, "Expected ';' after THROW-stmt.", &self->curr, s);
+        fprintf(stderr, "\tNote: see line %d.\n", self->curr.line);
+        return 0;
+    }
+    compiler_eat_tk(self, lexer, s);
+
+    return 1;
+}
+
+int8_t compiler_do_try_catch(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
+    compiler_eat_tk(self, lexer, s); // ? skip TRY
+
+    const int try_clause_line = self->prev.line;
+    if (!compiler_do_block(self, lexer, s, pg)) {
+        return 0;
+    }
+
+    const int jump_skip_catch_ip = pg->chunks.data[self->chunk_idx].code.length;
+    compiler_emit_op_unflagged(self, pg, op_jmp, 0);
+    compiler_emit_op(self, pg, op_catch_err);
+
+    if (!compiler_match_curr(self, tk_keyword_catch)) {
+        compiler_warn(self, "Expected 'CATCH' after throwable 'TRY' clause.", &self->curr, s);
+        fprintf(stderr, "\tNote: see line %d.\n", self->curr.line);
+        return 0;
+    }
+    compiler_eat_tk(self, lexer, s);
+
+    if (!compiler_do_block(self, lexer, s, pg)) {
+        return 0;
+    }
+
+    const int end_catch_ip = pg->chunks.data[self->chunk_idx].code.length;
+    pg->chunks.data[self->chunk_idx].code.data[jump_skip_catch_ip].wide = end_catch_ip - jump_skip_catch_ip;
+
+    return 1;
+}
+
 int8_t compiler_do_expr_stmt(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
     // ? Process / emit LHS first...
     compiler_flag_on(self, cgen_assign_to);
@@ -1349,6 +1402,10 @@ int8_t compiler_do_nestable_stmt(Compiler *self, Lexer *lexer, const charspan *s
         return compiler_do_continue(self, lexer, s, pg);
     case tk_keyword_ret:
         return compiler_do_ret(self, lexer, s, pg);
+    case tk_keyword_throw:
+        return compiler_do_throw(self, lexer, s, pg);
+    case tk_keyword_try:
+        return compiler_do_try_catch(self, lexer, s, pg);
     case tk_colon:
         return compiler_do_block(self, lexer, s, pg);
     default:
@@ -1469,6 +1526,10 @@ int8_t compiler_do_stmt(Compiler *self, Lexer *lexer, const charspan *s, Program
         return compiler_do_for(self, lexer, s, pg);
     case tk_keyword_ret:
         return compiler_do_ret(self, lexer, s, pg);
+    case tk_keyword_throw:
+        return compiler_do_throw(self, lexer, s, pg);
+    case tk_keyword_try:
+        return compiler_do_try_catch(self, lexer, s, pg);
     case tk_keyword_fun:
         return compiler_do_func(self, lexer, s, pg);
     default:

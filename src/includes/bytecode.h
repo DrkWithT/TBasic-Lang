@@ -45,6 +45,7 @@ typedef enum vm_opcode_t : uint8_t {
     op_dup,
     op_pop,
     op_load_string_k,
+    op_load_err_ref,
     op_mk_list,
     op_mk_dict,
     op_get_idx,
@@ -63,7 +64,9 @@ typedef enum vm_opcode_t : uint8_t {
     op_jmp_if,
     op_call,
     op_put_callee,
-    op_ret
+    op_ret,
+    op_raise_err,
+    op_catch_err,
 } Opcode;
 
 typedef struct code_vec_t {

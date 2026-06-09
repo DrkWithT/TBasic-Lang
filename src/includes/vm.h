@@ -14,7 +14,8 @@ typedef enum vm_status_t : uint8_t {
     vm_status_pending,
     vm_status_err_bad_op,
     vm_status_err_bad_call,
-    vm_status_err_abort
+    vm_status_err_abort,
+    vm_status_err_throw,
 } VMStatus;
 
 // ? Provides a forward decl. of VMState:
@@ -37,6 +38,7 @@ VMStatus fn_put_k(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_dup(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_pop(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_load_string_k(VMState *s, const Instruction *ip, const Value *cvp, Value *stack);
+VMStatus fn_load_err_ref(VMState *s, const Instruction *ip, const Value *cvp, Value *stack);
 VMStatus fn_mk_list(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_mk_dict(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_get_idx(VMState *, const Instruction *, const Value *, Value *);
@@ -56,7 +58,10 @@ VMStatus fn_jmp_if(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_call(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_put_callee(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_ret(VMState *, const Instruction *, const Value *, Value *);
+VMStatus fn_raise_err(VMState *, const Instruction *, const Value *, Value *);
+VMStatus fn_catch_err(VMState *, const Instruction *, const Value *, Value *);
 VMStatus vm_dispatch(VMState *s, const Instruction *ip, const Value *cvp, Value *stack);
+VMStatus vm_seek_catch(VMState *s, const Instruction *ip, const Value *cvp, Value *stack);
 
 
 
@@ -71,6 +76,7 @@ typedef struct vm_state_t {
     Value *stack;
     int sp;
     int bp;
+    int16_t error_oid; // ? heap-id of exception: 0+ if present, -1 otherwise
     uint8_t depth;
     VMStatus status;
 } VMState;
@@ -82,6 +88,10 @@ void dispose_vm(VMState *s);
 VMStatus vm_status(const VMState *s);
 
 Value vm_result(const VMState *s);
+
+int8_t vm_raise_error_with_data(VMState *s, uint16_t line, const Value* data);
+
+void vm_locally_propagate_error(VMState *s);
 
 VMStatus vm_run(VMState *s);
 

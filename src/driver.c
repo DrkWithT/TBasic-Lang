@@ -17,6 +17,10 @@ static const LexItem special_lexicals_v[] = {
     (LexItem) {.literal = "BREAK", .tag = tk_keyword_break},
     (LexItem) {.literal = "CONTINUE", .tag = tk_keyword_continue},
     (LexItem) {.literal = "RET", .tag = tk_keyword_ret},
+    (LexItem) {.literal = "THROW", tk_keyword_throw},
+    (LexItem) {.literal = "TRY", tk_keyword_try},
+    (LexItem) {.literal = "CATCH", tk_keyword_catch},
+    (LexItem) {.literal = "ERR", tk_keyword_err},
     (LexItem) {.literal = "FUN", .tag = tk_keyword_fun},
     (LexItem) {.literal = "END", .tag = tk_keyword_end},
     (LexItem) {.literal = "?", .tag = tk_os_nullish},
@@ -178,9 +182,14 @@ int driver_run(Driver *d, const char *file_path) {
     const VMStatus status = vm_run(&vm);
     gettimeofday(&end, NULL);
 
-    puts("Result:");
-    const Value ans = vm_result(&vm);
-    print_value(&ans, &vm);
+    if (status == vm_status_ok) {
+        puts("Result:");
+        const Value ans = vm_result(&vm);
+        print_value(&ans, &vm);
+    } else {
+        puts("\x1b[1;31mUNCAUGHT TBasic ERROR:\x1b[0m");
+        print_object(heap_get(&vm.heap, vm.error_oid), &vm);
+    }
 
     const long end_usec = end.tv_sec * 1000000 + end.tv_usec;
     const long begin_usec = begin.tv_sec * 1000000 + begin.tv_usec;

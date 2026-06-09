@@ -3,9 +3,10 @@
 #include "obj_list.h"
 #include "obj_str.h"
 #include "obj_dict.h"
+#include "obj_exception.h"
 
 
-static const OpFunc opcode_handlers[] = {
+static OpFunc opcode_handlers[] = {
     fn_nop,
     fn_put_none,
     fn_put_bool,
@@ -17,6 +18,7 @@ static const OpFunc opcode_handlers[] = {
     fn_dup,
     fn_pop,
     fn_load_string_k,
+    fn_load_err_ref,
     fn_mk_list,
     fn_mk_dict,
     fn_get_idx,
@@ -35,14 +37,19 @@ static const OpFunc opcode_handlers[] = {
     fn_jmp_if,
     fn_call,
     fn_put_callee,
-    fn_ret
+    fn_ret,
+    fn_raise_err,
+    fn_catch_err,
 };
+
+// ! Editable VM dispatch function pointer: If an exception is thrown, this may be set to `vm_seek_catch`!
+static OpFunc dispatcher = vm_dispatch;
 
 VMStatus fn_nop(VMState *s, const Instruction *ip, const Value* cvp, Value *stack) {
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_put_none(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -51,7 +58,7 @@ VMStatus fn_put_none(VMState *s, const Instruction *ip, const Value *cvp, Value 
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_put_bool(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -60,14 +67,14 @@ VMStatus fn_put_bool(VMState *s, const Instruction *ip, const Value *cvp, Value 
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_reserve(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
     const int old_sp = s->sp;
     const uint16_t res_count = ip->wide;
 
-    for (uint16_t nil_pushes = res_count; nil_pushes > 0; nil_pushes--) {
+    for (uint16_t nil_pushes = 0; nil_pushes < res_count; nil_pushes++) {
         stack[old_sp + nil_pushes].tag = vtag_nil; // ? NOTE: Do a lazy reset of previously used / allocated stack slot for perf.
     }
 
@@ -75,7 +82,7 @@ VMStatus fn_reserve(VMState *s, const Instruction *ip, const Value *cvp, Value *
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_load_imm_gid(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -84,7 +91,7 @@ VMStatus fn_load_imm_gid(VMState *s, const Instruction *ip, const Value *cvp, Va
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_load_local(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -93,7 +100,7 @@ VMStatus fn_load_local(VMState *s, const Instruction *ip, const Value *cvp, Valu
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_store_local(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -102,7 +109,7 @@ VMStatus fn_store_local(VMState *s, const Instruction *ip, const Value *cvp, Val
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_put_k(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -111,7 +118,7 @@ VMStatus fn_put_k(VMState *s, const Instruction *ip, const Value *cvp, Value *st
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_dup(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -120,7 +127,7 @@ VMStatus fn_dup(VMState *s, const Instruction *ip, const Value *cvp, Value *stac
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_pop(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -128,7 +135,7 @@ VMStatus fn_pop(VMState *s, const Instruction *ip, const Value *cvp, Value *stac
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_load_string_k(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -137,7 +144,16 @@ VMStatus fn_load_string_k(VMState *s, const Instruction *ip, const Value *cvp, V
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_load_err_ref(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {   
+    s->sp++;
+    stack[s->sp] = make_value_obj(s->error_oid);
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_mk_list(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -178,7 +194,7 @@ VMStatus fn_mk_list(VMState *s, const Instruction *ip, const Value *cvp, Value *
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_mk_dict(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -198,7 +214,7 @@ VMStatus fn_mk_dict(VMState *s, const Instruction *ip, const Value *cvp, Value *
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_get_idx(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -232,7 +248,7 @@ VMStatus fn_get_idx(VMState *s, const Instruction *ip, const Value *cvp, Value *
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_set_idx(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -271,7 +287,7 @@ VMStatus fn_set_idx(VMState *s, const Instruction *ip, const Value *cvp, Value *
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_chk_none(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -282,7 +298,7 @@ VMStatus fn_chk_none(VMState *s, const Instruction *ip, const Value *cvp, Value 
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_mul(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -309,7 +325,7 @@ VMStatus fn_mul(VMState *s, const Instruction *ip, const Value *cvp, Value *stac
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_div(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -340,7 +356,7 @@ VMStatus fn_div(VMState *s, const Instruction *ip, const Value *cvp, Value *stac
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_add(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -367,7 +383,7 @@ VMStatus fn_add(VMState *s, const Instruction *ip, const Value *cvp, Value *stac
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_sub(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -394,7 +410,7 @@ VMStatus fn_sub(VMState *s, const Instruction *ip, const Value *cvp, Value *stac
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_eq(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -427,7 +443,7 @@ VMStatus fn_eq(VMState *s, const Instruction *ip, const Value *cvp, Value *stack
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_ne(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -460,7 +476,7 @@ VMStatus fn_ne(VMState *s, const Instruction *ip, const Value *cvp, Value *stack
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_lt(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -493,7 +509,7 @@ VMStatus fn_lt(VMState *s, const Instruction *ip, const Value *cvp, Value *stack
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_gt(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -526,7 +542,7 @@ VMStatus fn_gt(VMState *s, const Instruction *ip, const Value *cvp, Value *stack
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_jmp(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -538,7 +554,7 @@ VMStatus fn_jmp(VMState *s, const Instruction *ip, const Value *cvp, Value *stac
     }
         
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_jmp_false(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -574,7 +590,7 @@ VMStatus fn_jmp_false(VMState *s, const Instruction *ip, const Value *cvp, Value
     }
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_jmp_if(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -600,22 +616,25 @@ VMStatus fn_jmp_if(VMState *s, const Instruction *ip, const Value *cvp, Value *s
     }
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_call(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
     const int16_t arg_count = ip->wide;
 
     if (ip->flag && stack[s->sp - arg_count].tag == vtag_int) {
+        // ? Case 1: handle native calls...
         s->status = s->native_table[stack[s->sp - arg_count].data.i](s, ip->wide);
         ip++;
 
         TAILCALL
-        return vm_dispatch(s, ip, cvp, stack);
+        return dispatcher(s, ip, cvp, stack);
     } else if (stack[s->sp - arg_count].tag != vtag_int) {
         return vm_status_err_bad_call;
     }
-    
+
+    // ? Case 2: handle bytecode calls...
+    // ! FIXME: use self->frames.
     const Chunk *callee_chunk = s->prgm->chunks.data + stack[s->sp - arg_count].data.i;
     const Instruction *caller_ret_ip = ip + 1;
     const Value *caller_cvp = cvp;
@@ -626,20 +645,20 @@ VMStatus fn_call(VMState *s, const Instruction *ip, const Value *cvp, Value *sta
 
     // ? For speed and simplicity, use the native stack to track VM call recursions...
     s->depth++;
-    vm_dispatch(s, callee_chunk->code.data, callee_chunk->constants.data, stack);
+    dispatcher(s, callee_chunk->code.data, callee_chunk->constants.data, stack);
 
     stack[callee_bp] = stack[s->sp];
     s->sp = callee_bp;
     s->bp = caller_bp;
-    ip = caller_ret_ip;
-    cvp = caller_cvp;
+    s->ip = caller_ret_ip;
+    s->cvp = caller_cvp;
 
     if (s->depth == 0) {
         return s->status;
     }
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, s->ip, s->cvp, stack);
 }
 
 VMStatus fn_put_callee(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -648,7 +667,7 @@ VMStatus fn_put_callee(VMState *s, const Instruction *ip, const Value *cvp, Valu
     ip++;
 
     TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
+    return dispatcher(s, ip, cvp, stack);
 }
 
 VMStatus fn_ret(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -662,14 +681,54 @@ VMStatus fn_ret(VMState *s, const Instruction *ip, const Value *cvp, Value *stac
         stack[0] = stack[s->sp];
         s->sp = 0;
         s->bp = 0;
+    } else if (s->status == vm_status_err_throw) {
+        s->sp++;
+        stack[s->sp] = make_value_none(); // ? thrown functions will "fail" with NIL results
+        dispatcher = vm_seek_catch; // ? resume seeking a catch in the caller, letting the native call stack unwind
     }
 
     return s->status;
 }
 
+VMStatus fn_raise_err(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    const Value *err_data = stack + s->sp;
+    const int err_line = ip->wide;
+
+    if (!vm_raise_error_with_data(s, err_line, err_data)) {
+        return s->status;
+    }
+
+    s->sp--; // ? pop temporary for error data
+
+    s->ip = ip;
+    vm_locally_propagate_error(s);
+    dispatcher = vm_dispatch; // ? run the reached catch or ret opcode
+
+    TAILCALL
+    return dispatcher(s, s->ip, cvp, stack);
+}
+
+VMStatus fn_catch_err(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    s->status = vm_status_pending;
+    dispatcher = vm_dispatch;
+
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
 VMStatus vm_dispatch(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
     TAILCALL
     return opcode_handlers[ip->op](s, ip, cvp, stack);
+}
+
+VMStatus vm_seek_catch(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    vm_locally_propagate_error(s);
+    dispatcher = vm_dispatch; // ? handle catch or return opcode that's been reached
+
+    TAILCALL
+    return dispatcher(s, s->ip, cvp, stack);
 }
 
 
@@ -694,6 +753,7 @@ VMState make_vm(const Program *program, const NativeFn *native_table_ptr, int lo
         .stack = stack_buffer,
         .sp = 0,
         .bp = 0,
+        .error_oid = DUD_HEAP_ID,
         .depth = 1,
         .status = (stack_buffer != NULL) ? vm_status_pending : vm_status_err_abort
     };
@@ -715,6 +775,43 @@ VMStatus vm_status(const VMState *s) {
 
 Value vm_result(const VMState *s) {
     return s->stack[0];
+}
+
+int8_t vm_raise_error_with_data(VMState *s, uint16_t line, const Value* data) {
+    TBErr *temp_error = alloc_tberr(data, line);
+
+    if (temp_error == NULL) {
+        s->status = vm_status_err_abort;
+        return 0;
+    }
+
+    s->error_oid = heap_store(&s->heap, (ObjMutPtr)temp_error);
+    s->status = vm_status_err_throw;
+
+    return 1;
+}
+
+void vm_locally_propagate_error(VMState *s) {
+    if (s->status != vm_status_err_throw) {
+        return;
+    }
+
+    while (1) {
+        const Opcode seek_op = s->ip->op;
+
+        switch (seek_op) {
+            case op_catch_err:
+            case op_ret:
+                // ! A 'break' is not powerful enough to escape the clutches of our VM exception mode... Here, a goto is necessary to terminate seeking a catch or return.
+                goto seek_bailout;
+            default:
+                s->ip++;
+                break;
+        }
+    }
+
+seek_bailout:
+    return;
 }
 
 VMStatus vm_run(VMState *s) {

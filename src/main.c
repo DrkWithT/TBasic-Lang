@@ -36,9 +36,9 @@ int main(int argc, char *argv[]) {
         .stack_capacity = CONFIG_DEFAULT_VM_LOCALS,
         .heap_capacity = CONFIG_DEFAULT_VM_HEAP_POPULATION,
         .recursion_max = CONFIG_DEFAULT_VM_RECUR_LIMIT,
-        .version_major = 0,
-        .version_minor = 8,
-        .version_patch = 1
+        .version_major = TBASIC_VERSION_MAJOR,
+        .version_minor = TBASIC_VERSION_MINOR,
+        .version_patch = TBASIC_VERSION_PATCH
     };
 
     Driver app;

@@ -138,6 +138,8 @@ int8_t compiler_do_for(Compiler *self, Lexer *lexer, const charspan *s, Program 
 int8_t compiler_do_break(Compiler *self, Lexer *lexer, const charspan *s, Program *pg);
 int8_t compiler_do_continue(Compiler *self, Lexer *lexer, const charspan *s, Program *pg);
 int8_t compiler_do_ret(Compiler *self, Lexer *lexer, const charspan *s, Program *pg);
+int8_t compiler_do_throw(Compiler *self, Lexer *lexer, const charspan *s, Program *pg);
+int8_t compiler_do_try_catch(Compiler *self, Lexer *lexer, const charspan *s, Program *pg);
 int8_t compiler_do_expr_stmt(Compiler *self, Lexer *lexer, const charspan *s, Program *pg);
 int8_t compiler_do_func(Compiler *self, Lexer *lexer, const charspan *s, Program *pg);
 int8_t compiler_do_nestable_stmt(Compiler *self, Lexer *lexer, const charspan *s, Program *pg);
