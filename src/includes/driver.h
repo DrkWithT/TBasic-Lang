@@ -5,8 +5,8 @@
 
 #include "vec.h"
 #include "mystr.h"
-// #include "bytecode.h"
 #include "compiler.h"
+#include "optimizer.h"
 #include "vm.h"
 
 
@@ -16,7 +16,7 @@
 #define CONFIG_DEFAULT_VM_HEAP_POPULATION 256
 #define TBASIC_VERSION_MAJOR 0
 #define TBASIC_VERSION_MINOR 9
-#define TBASIC_VERSION_PATCH 0
+#define TBASIC_VERSION_PATCH 1
 
 mystr read_file(const char *fname);
 
@@ -45,6 +45,7 @@ STUB_SCALAR_VEC(NativeFn)
 
 typedef struct ts_driver_t {
     Compiler compiler;
+    Optimizer optimizer;
     ScalarVec_NativeFn natives;
     DriverConfig config;
     int8_t flags[dflag_last];

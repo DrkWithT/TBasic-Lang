@@ -92,6 +92,7 @@ mystr read_file(const char *fname) {
 
 void driver_dud(Driver *d, const DriverConfig *config) {
     d->compiler = make_compiler();
+    optimizer_dud(&d->optimizer);
     ScalarVec_NativeFn_dud(&d->natives);
     d->config = *config;
     memset(&d->flags, 0, sizeof(d->flags));
@@ -138,6 +139,10 @@ Program driver_compile(Driver *d, const char *file_path) {
         };
     }
 
+    for (size_t chunk_pos = 0; chunk_pos < program.chunks.length; chunk_pos++) {
+        optimizer_apply(&d->optimizer, &program.chunks.data[chunk_pos].code);
+    }
+
     charspan_del(&source_view);
     mystr_del(&file_source);
 
@@ -147,7 +152,7 @@ Program driver_compile(Driver *d, const char *file_path) {
 int driver_run(Driver *d, const char *file_path) {
     if (driver_get_flag(d, dflag_info)) {
         printf(
-            "\x1b[1;34m%s\x1b[0m\n\x1b[1;29mv%d.%d.%d\x1b[0m  \x1b[1;30m---\x1b[0m  \x1b[1;29mDrkWithT (GitHub)\x1b[0m\n",
+            "\x1b[1;36m%s\x1b[0m\n\x1b[1;29mv%d.%d.%d\x1b[0m  \x1b[1;30m---\x1b[0m  \x1b[1;29mDrkWithT (GitHub)\x1b[0m\n",
             d->config.title,
             d->config.version_major, d->config.version_minor, d->config.version_patch
         );
