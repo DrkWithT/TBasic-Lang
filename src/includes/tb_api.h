@@ -44,9 +44,9 @@ static inline int tbasic_run(const char *argv[], int argc, const charspan *nativ
         .stack_capacity = CONFIG_DEFAULT_VM_LOCALS,
         .heap_capacity = CONFIG_DEFAULT_VM_HEAP_POPULATION,
         .recursion_max = CONFIG_DEFAULT_VM_RECUR_LIMIT,
-        .version_major = 0,
-        .version_minor = 6,
-        .version_patch = 3
+        .version_major = TBASIC_VERSION_MAJOR,
+        .version_minor = TBASIC_VERSION_MINOR,
+        .version_patch = TBASIC_VERSION_PATCH
     };
 
     Driver app;
