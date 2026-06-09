@@ -51,6 +51,7 @@ else ()
         "${PROJECT_SOURCES}/obj_list.c"
         "${PROJECT_SOURCES}/obj_str.c"
         "${PROJECT_SOURCES}/obj_dict.c"
+        "${PROJECT_SOURCES}/obj_exception.c"
         "${PROJECT_SOURCES}/gc.c"
         "${PROJECT_SOURCES}/bytecode.c"
         "${PROJECT_SOURCES}/compiler.c"

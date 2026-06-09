@@ -34,7 +34,7 @@ int8_t tberr_as_bool_fn(const void *self) {
     return 1; // ? exceptions are always truthy
 }
 
-Value tberr_get_fn(const void *self, Value key) {
+Value tberr_get_v_fn(const void *self, Value key) {
     if (key.tag != vtag_int) {
         return make_value_none();
     }
@@ -49,7 +49,7 @@ Value tberr_get_fn(const void *self, Value key) {
     }
 }
 
-int8_t tberr_set_fn(void *self, Value key, Value item) {
+int8_t tberr_set_v_fn(void *self, Value key, Value item) {
     return 1; // ? mutating an error object is a NOOP
 }
 
