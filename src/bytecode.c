@@ -12,6 +12,7 @@ static const char *opcode_names[] = {
     "op_dup",
     "op_pop",
     "op_load_string_k",
+    "op_load_err_ref",
     "op_mk_list",
     "op_mk_dict",
     "op_get_idx",
@@ -30,7 +31,9 @@ static const char *opcode_names[] = {
     "op_jmp_if",
     "op_call",
     "op_put_callee",
-    "op_ret"
+    "op_ret",
+    "op_raise_err",
+    "op_catch_err",
 };
 
 void Instruction_dud(Instruction* ins) {}
