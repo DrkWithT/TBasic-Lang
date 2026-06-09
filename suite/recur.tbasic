@@ -8,4 +8,4 @@ FUN fib(n):
     RET fib(n - 1) + fib(n - 2);
 END
 
-RET fib(20);
+RET fib(30);

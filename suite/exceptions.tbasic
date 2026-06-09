@@ -1,0 +1,16 @@
+`test exceptions`
+
+FUN test(x):
+    THROW "Testing exceptions!";
+    `unreachable, should not return`
+    RET x;
+END
+
+TRY:
+    `should not print`
+    print(test(67));
+END CATCH:
+    print(ERR);
+END
+
+RET 0;
