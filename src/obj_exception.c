@@ -62,6 +62,6 @@ void tberr_display_fn(const void *self, const void *vm) {
 
     const VMState *vm_state_p = (const VMState *)vm;
 
-    printf("Error at source ~ line %d:\n\tnote: ", self_as_err->line);
+    printf("\x1b[1;31mError\x1b[0m at source ~ line \x1b[1;33m%d\x1b[0m:\n\tnote: ", self_as_err->line);
     print_value(&self_as_err->data, vm_state_p);
 }

@@ -187,7 +187,7 @@ int driver_run(Driver *d, const char *file_path) {
         const Value ans = vm_result(&vm);
         print_value(&ans, &vm);
     } else {
-        puts("Unhandled TBasic Err:");
+        puts("\x1b[1;31mUNCAUGHT TBasic ERROR:\x1b[0m");
         print_object(heap_get(&vm.heap, vm.error_oid), &vm);
     }
 
