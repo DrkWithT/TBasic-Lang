@@ -1,0 +1,24 @@
+`test the infamous 3X + 1 algorithm`
+
+FUN is_even(n):
+    RET (n == (n / 2) * 2);
+END
+
+FUN collatz(n):
+    LET x : n, hops : 0;
+
+    WHILE x != 1:
+        IF is_even(x):
+            x := x / 2;
+        END ELSE:
+            x := (3 * x) + 1;
+        END
+
+        hops := hops + 1;
+    END
+
+    RET hops;
+END
+
+`must be TRUE`
+RET collatz(27);

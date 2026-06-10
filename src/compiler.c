@@ -986,7 +986,7 @@ int8_t compiler_do_ifs(Compiler *self, Lexer *lexer, const charspan *s, Program 
 
     const uint16_t jump_else_pos = pg->chunks.data[self->chunk_idx].code.length;
     compiler_emit_op_flagged(self, pg, op_jmp_false, 0, 0);
-    compiler_emit_op_flagged(self, pg, op_pop, 1, 0);
+    // compiler_emit_op_flagged(self, pg, op_pop, 1, 0);
 
     if (!compiler_do_block(self, lexer, s, pg)) {
         return 0;
@@ -1047,7 +1047,7 @@ int8_t compiler_do_while(Compiler *self, Lexer *lexer, const charspan *s, Progra
     const uint16_t while_jmp_back_pos = pg->chunks.data[self->chunk_idx].code.length;
     compiler_emit_op_flagged(self, pg, op_jmp, 1, 0); // ? flags = 1 ==> backwards jump applies!
     const uint16_t while_exit_pos = pg->chunks.data[self->chunk_idx].code.length;
-    compiler_emit_op_flagged(self, pg, op_pop, 1, 0); // ? pop off check after loop quits WHEN it's FALSE
+    // compiler_emit_op_flagged(self, pg, op_pop, 1, 0); // ? pop off check after loop quits WHEN it's FALSE
 
     pg->chunks.data[self->chunk_idx].code.data[while_jmp_back_pos].wide = while_jmp_back_pos - while_check_pos;
     pg->chunks.data[self->chunk_idx].code.data[while_jmp_out_pos].wide = while_exit_pos - while_jmp_out_pos;
