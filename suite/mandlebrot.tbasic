@@ -1,0 +1,32 @@
+`test mandlebrot series`
+
+LET width : 800.0, height : 800.0, max_its : 100, its : 0;
+
+LET x_min : -2.5, x_max : 1.0, y_min : -1.25, y_max : 1.25;
+
+LET x : 0.0, y : 0.0;
+
+WHILE y < height:
+    WHILE x < width:
+        LET cx : x_min + (x * (x_max - x_min) / width);
+        LET cy : y_min + (y * (y_max - y_min) / height);
+
+        LET zx : 0.0, zy : 0.0, iter : 0;
+
+        WHILE (zx * zx + zy * zy < 4.0) && (iter < max_its):
+            LET xtemp : zx * zx - zy * zy + cx;
+            zy := 2.0 * zx * zy + cy;
+            zx := xtemp;
+            iter := iter + 1;
+            its := its + 1;
+        END
+
+        x := x + 1.0;
+    END
+
+    y := y + 1.0;
+    x := 0.0;
+END
+
+`should be around 100K`
+RET its;

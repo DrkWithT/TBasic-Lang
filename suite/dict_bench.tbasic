@@ -1,0 +1,13 @@
+`test dict lookup speed - microbench`
+
+LET data : {
+    "i" : 5000;
+    "a" : 0;
+};
+
+WHILE data["i"] > 0:
+    data["a"] := data["a"] + data["i"];
+    data["i"] := data["i"] - 1;
+END
+
+RET data["a"];
