@@ -92,6 +92,7 @@ mystr read_file(const char *fname) {
 
 void driver_dud(Driver *d, const DriverConfig *config) {
     d->compiler = make_compiler();
+    d->vm.status = vm_status_uninitialized;
     optimizer_dud(&d->optimizer);
     ScalarVec_NativeFn_dud(&d->natives);
     d->config = *config;
@@ -100,7 +101,11 @@ void driver_dud(Driver *d, const DriverConfig *config) {
 
 void driver_del(Driver *d) {
     compiler_del(&d->compiler);
-    dispose_vm(&d->vm);
+
+    if (vm_status(&d->vm) != vm_status_uninitialized) {
+        dispose_vm(&d->vm);
+    }
+
     ScalarVec_NativeFn_del(&d->natives);
 }
 
@@ -164,18 +169,16 @@ int driver_run(Driver *d, const char *file_path) {
     Program code = driver_compile(d, file_path);
 
     if (code.entry_id == -1) {
+        driver_set_flag(d, dflag_invalid_opts, 1);
         return 1;
     }
 
     // TODO: add usage of other driver flags: dump / run bytecode files?
     if (driver_get_flag(d, dflag_dis_bc)) {
         dump_program(&code);
-        program_del(&code);
-        return 0;
     }
 
     if (!driver_get_flag(d, dflag_run_bc)) {
-        dump_program(&code);
         program_del(&code);
         return 0;
     }

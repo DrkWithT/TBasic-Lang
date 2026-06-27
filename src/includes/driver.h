@@ -33,9 +33,9 @@ typedef struct driver_config_t {
 typedef enum driver_flag_t : uint8_t {
     dflag_info,
     dflag_dis_bc,
-    dflag_dump_bc,
     dflag_load_bc,
     dflag_run_bc,
+    dflag_invalid_opts,
     dflag_last,
 } DriverFlag;
 

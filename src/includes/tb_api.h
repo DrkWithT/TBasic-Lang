@@ -141,6 +141,7 @@ static inline int tbasic_run(const char *argv[], int argc, const charspan *nativ
     const int exit_code = driver_run(&app, source_fpath);
 
     driver_del(&app);
+
     return exit_code;
 }
 

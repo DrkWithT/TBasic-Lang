@@ -16,6 +16,7 @@ typedef enum vm_status_t : uint8_t {
     vm_status_err_bad_call,
     vm_status_err_abort,
     vm_status_err_throw,
+    vm_status_uninitialized
 } VMStatus;
 
 // ? Provides a forward decl. of VMState:
