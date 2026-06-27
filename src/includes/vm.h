@@ -98,6 +98,8 @@ VMState make_vm(const Program *program, const NativeFn *native_table_ptr, int lo
 
 void dispose_vm(VMState *s);
 
+void restart_vm(VMState *s);
+
 VMStatus vm_status(const VMState *s);
 
 Value vm_result(const VMState *s);
