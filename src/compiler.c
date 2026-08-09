@@ -5,125 +5,6 @@
 
 
 
-IMPL_SCALAR_VEC(int)
-
-void ActiveLoop_dud(ActiveLoop *self) {
-    ScalarVec_int_dud(&self->loop_breaks);
-    ScalarVec_int_dud(&self->loop_continues);
-}
-
-void ActiveLoop_copy(ActiveLoop *self, const ActiveLoop *other) {
-    ScalarVec_int_copy(&self->loop_breaks, &other->loop_breaks);
-    ScalarVec_int_copy(&self->loop_continues, &other->loop_continues);
-}
-
-void ActiveLoop_del(ActiveLoop *self) {
-    ScalarVec_int_del(&self->loop_breaks);
-    ScalarVec_int_del(&self->loop_continues);
-}
-
-IMPL_VEC(ActiveLoop)
-
-
-
-SymbolInfo make_symbol_info(charspan name_v, int16_t id, Domain d) {
-    return (SymbolInfo) {
-        .name = name_v,
-        .id = id,
-        .domain = d
-    };
-}
-
-SymbolTable make_symbol_table() {
-    SymbolInfo *temp_infos = calloc(DEFAULT_SYMBOL_CAPACITY, sizeof(SymbolInfo));
-
-    if (temp_infos != NULL) {   
-        return (SymbolTable) {
-            .infos = temp_infos,
-            .length = 0,
-            .capacity = DEFAULT_SYMBOL_CAPACITY,
-            .var_alloc_ip = 0,
-            .local_argc = 0,
-            .next_local_id = 0,     // ? Start from BP since BP holds the callee... OLD + 1 --> new ID.
-            .next_global_id = 1     // ? Start from 1 since chunks 1+ are for other procedures. 0 is the implicit main one.
-        };
-    }
-
-    return (SymbolTable) {
-        .infos = NULL,
-        .length = 0,
-        .capacity = 0,
-        .var_alloc_ip = 0,
-        .local_argc = 0,
-        .next_local_id = 0,
-        .next_global_id = 1
-    };
-}
-
-void symbol_table_del(SymbolTable *self) {
-    if (self->infos != NULL) {
-        free(self->infos);
-        self->infos = NULL;
-    }
-}
-
-void symbol_table_clear(SymbolTable *self) {
-    const int entry_n = self->length;
-
-    for (int i = 0; i < entry_n; i++) {
-        self->infos[i] = (SymbolInfo) {
-            .name = {
-                .data = NULL,
-                .length = 0
-            },
-            .id = 0,
-            .domain = symbol_constant
-        };
-    }
-
-    self->length = 0;
-    self->var_alloc_ip = 0;
-    self->local_argc = 0,
-    self->next_local_id = 0;
-}
-
-const SymbolInfo *symbol_table_find(const SymbolTable *symbols, const charspan *s, Domain d) {
-    const SymbolInfo *infos_begin = symbols->infos;
-    const int entry_n = symbols->length;
-
-    for (int entry_pos = 0; entry_pos < entry_n; entry_pos++) {
-        if (charspan_equals_charspan(s, &infos_begin[entry_pos].name) && infos_begin[entry_pos].domain == d) {
-            return infos_begin + entry_pos;
-        }
-    }
-
-    return NULL;
-}
-
-const SymbolInfo *symbol_table_push(SymbolTable *symbols, const SymbolInfo *info) {
-    const int next_pos = symbols->length;
-    const int old_capacity = symbols->capacity;
-
-    if (next_pos >= old_capacity) {
-        const int new_capacity = (old_capacity * 3) / 2;
-        SymbolInfo *temp_data = realloc(symbols->infos, sizeof(SymbolInfo) * new_capacity);
-
-        if (temp_data != NULL) {   
-            symbols->infos = temp_data;
-            symbols->capacity = new_capacity;
-        } else {
-            return NULL;
-        }
-    }
-
-    symbols->infos[next_pos] = *info;
-    symbols->length++;
-
-    return symbols->infos + next_pos;
-}
-
-
-
 Compiler make_compiler() {
     AnyVec_ActiveLoop temp_loops;
     AnyVec_ActiveLoop_dud(&temp_loops);
@@ -148,8 +29,7 @@ Compiler make_compiler() {
         .chunk_idx = 0,
         .next_native_id = 0,
         .next_str_id = 0,
-        .saved_id = 0,
-        .flags = cgen_no_flags
+        .saved_id = 0
     };
 }
 
@@ -217,25 +97,7 @@ void compiler_eat_tk(Compiler *self, Lexer *lexer, const charspan *s) {
 
 void compiler_warn(Compiler *self, const char *msg, const Token *tk, const charspan *s) {
     self->errors++;
-    fprintf(stderr, "Compile Err #%d at line %d:\n\tnote: %s\n", self->errors, tk->line, msg);
-}
-
-void compiler_flag_on(Compiler *self, CodegenFlag flag) {
-    self->flags |= flag;
-}
-
-void compiler_flag_off(Compiler *self, CodegenFlag flag) {
-    self->flags &= ~(uint8_t)flag;
-}
-
-int8_t compiler_flag_of(const Compiler *self, CodegenFlag flag) {
-    switch (flag) {
-    case cgen_assign_to: return (self->flags & flag);
-    case cgen_access_of: return (self->flags & flag) >> 1;
-    case cgen_lhs_local: return (self->flags & flag) >> 2;
-    case cgen_lhs_native: return (self->flags & flag) >> 3;
-    default: return 0;
-    }
+    fprintf(stderr, "Compile Err #%d at line %d:\n\tNote: %s\n", self->errors, tk->line, msg);
 }
 
 size_t compiler_emit_op(Compiler *self, Program *pg, Opcode op) {
@@ -415,7 +277,7 @@ void compiler_track_continue_pos(Compiler *self, int pos) {
 
 
 
-int8_t compiler_do_list(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
+uint8_t compiler_do_list(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
     compiler_eat_tk(self, lexer, s); // ? SKIP '['
 
     int16_t item_count = 0;
@@ -425,9 +287,10 @@ int8_t compiler_do_list(Compiler *self, Lexer *lexer, const charspan *s, Program
             break;
         }
 
-        if (!compiler_do_or(self, lexer, s, pg)) {
-            fprintf(stderr, "Note: See list item #%d around line %d", item_count, self->prev.line);
-            return 0;
+        const CompHints item_hints = compiler_do_or(self, lexer, s, pg, hints);
+        if (!compile_hints_check_flag(item_hints, cgen_visit_ok)) {
+            fprintf(stderr, "\tNote: See list item #%d around line %d\n", item_count, self->prev.line);
+            return item_hints;
         }
 
         item_count++;
@@ -440,10 +303,10 @@ int8_t compiler_do_list(Compiler *self, Lexer *lexer, const charspan *s, Program
 
     compiler_emit_op_unflagged(self, pg, op_mk_list, item_count);
 
-    return 1;
+    return hints;
 }
 
-int8_t compiler_do_dict(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
+uint8_t compiler_do_dict(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
     compiler_eat_tk(self, lexer, s); // ? SKIP '{'
 
     // ? Here, push a blank dictionary to add properties to...
@@ -456,7 +319,7 @@ int8_t compiler_do_dict(Compiler *self, Lexer *lexer, const charspan *s, Program
 
         if (!compiler_match_curr(self, tk_string)) {
             compiler_warn(self, "Expected name string for dict field.", &self->curr, s);
-            return 0;
+            return cgen_parse_err;
         }
         compiler_eat_tk(self, lexer, s);
 
@@ -468,34 +331,35 @@ int8_t compiler_do_dict(Compiler *self, Lexer *lexer, const charspan *s, Program
         const SymbolInfo *key_info = compiler_record_string(self, pg, &temp_key);
 
         if (key_info == NULL) {
-            return 0;
+            return cgen_dead;
         }
         compiler_emit_op_unflagged(self, pg, op_load_string_k, key_info->id);
 
         if (!compiler_match_curr(self, tk_colon)) {
             compiler_warn(self, "Expected ':' before field initializer.", &self->curr, s);
-            return 0;
+            return cgen_parse_err;
         }
         compiler_eat_tk(self, lexer, s);
 
-        if (!compiler_do_or(self, lexer, s, pg)) {
-            return 0;
+        const CompHints field_initializer_hints = compiler_do_or(self, lexer, s, pg, hints);
+        if (!compile_hints_check_flag(field_initializer_hints, cgen_visit_ok)) {
+            return field_initializer_hints;
         }
 
         compiler_emit_op(self, pg, op_set_idx);
 
         if (!compiler_match_curr(self, tk_semicolon)) {
             compiler_warn(self, "Expected ';' after dict field.", &self->curr, s);
-            return 0;
+            return cgen_parse_err;
         }
         compiler_eat_tk(self, lexer, s);
     }
     compiler_eat_tk(self, lexer, s);
 
-    return 1;
+    return hints;
 }
 
-int8_t compiler_do_literal(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
+uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
     const Token *curr_ref = &self->curr;
     const charspan lexeme = {
         .data = s->data + curr_ref->begin,
@@ -503,16 +367,19 @@ int8_t compiler_do_literal(Compiler *self, Lexer *lexer, const charspan *s, Prog
     };
 
     const SymbolInfo *temp_locus = NULL;
+    CompHints temp_hints = cgen_visit_ok;
 
     switch (curr_ref->tag) {
         case tk_none:
             compiler_emit_op(self, pg, op_put_none);
             compiler_eat_tk(self, lexer, s);
-            return 1;
+
+            return hints;
         case tk_true: case tk_false:
             compiler_emit_op_flagged(self, pg, op_put_bool, curr_ref->tag == tk_true, 0);
             compiler_eat_tk(self, lexer, s);
-            return 1;
+
+            return hints;
         case tk_integer:
             temp_locus = compiler_record_constant(
                 self,
@@ -521,6 +388,7 @@ int8_t compiler_do_literal(Compiler *self, Lexer *lexer, const charspan *s, Prog
                 make_value_int(charspan_atoi(&lexeme))
             );
             compiler_eat_tk(self, lexer, s);
+
             break;
         case tk_real:
             temp_locus = compiler_record_constant(
@@ -530,6 +398,7 @@ int8_t compiler_do_literal(Compiler *self, Lexer *lexer, const charspan *s, Prog
                 make_value_real(charspan_atof(&lexeme))
             );
             compiler_eat_tk(self, lexer, s);
+
             break;
         case tk_string:
             temp_locus = compiler_record_string(
@@ -538,104 +407,112 @@ int8_t compiler_do_literal(Compiler *self, Lexer *lexer, const charspan *s, Prog
                 &lexeme
             );
             compiler_eat_tk(self, lexer, s);
+
             break;
         case tk_keyword_err:
             compiler_eat_tk(self, lexer, s); // ? skip 'ERR'
             compiler_emit_op(self, pg, op_load_err_ref);
-            return 1;
+
+            return hints;
         case tk_identifier:
             temp_locus = compiler_resolve_name(
                 self,
                 &lexeme
             );
             compiler_eat_tk(self, lexer, s);
+
             break;
         case tk_lparen:
             compiler_eat_tk(self, lexer, s);
-            if (!compiler_do_or(self, lexer, s, pg)) {
-                fprintf(stderr, "Note: See parenthesized expr at around line %d.\n", self->prev.line);
-                return 0;
+            temp_hints = compiler_do_or(self, lexer, s, pg, hints);
+
+            if (!compile_hints_check_flag(temp_hints, cgen_visit_ok)) {
+                fprintf(stderr, "\tNote: See parenthesized expr at around line %d.\n", self->prev.line);
+                return temp_hints;
             }
+
             if (!compiler_match_curr(self, tk_rparen)) {
                 compiler_warn(self, "Expected ')' closing parenthesized expr.", &self->curr, s);
-                return 0;
+                return cgen_parse_err;
             }
+
             compiler_eat_tk(self, lexer, s);
-            return 1;
+
+            return hints;
         case tk_lbrack:
-            return compiler_do_list(self, lexer, s, pg);
+            return compiler_do_list(self, lexer, s, pg, hints);
         case tk_lbrace:
-            return compiler_do_dict(self, lexer, s, pg);
+            return compiler_do_dict(self, lexer, s, pg, hints);
         default:
             compiler_warn(self, "Unexpected token in literal, expected none, true, false, or a name.", curr_ref, s);
-            return 0;
+
+            return cgen_parse_err;
     }
 
     if (temp_locus == NULL) {
         compiler_warn(self, "Undeclared name found here.", &self->prev, s);
-        return 0;
+
+        return cgen_dead;
     }
 
-    // todo: add case for assignment LHS's of table accesses...
     if (self->curr.tag == tk_os_bind_equals) {
-        compiler_flag_on(self, cgen_assign_to);
+        hints |= cgen_assign_to;
 
         if (temp_locus->domain == symbol_local) {
-            compiler_flag_on(self, cgen_lhs_local);
+            hints |= cgen_lhs_local;
             self->saved_id = temp_locus->id;
-            return 1;
+
+            return hints;
         }
     }
 
     switch (temp_locus->domain) {
         case symbol_constant:
             compiler_emit_op_unflagged(self, pg, op_put_k, temp_locus->id);
+
             break;
         case symbol_local:
             compiler_emit_op_unflagged(self, pg, op_load_local, temp_locus->id);
+
             break;
         case symbol_func:
             // ? NOTE: The pushed ID is for a global procedure, VM or native.
             compiler_emit_op_unflagged(self, pg, op_load_imm_gid, temp_locus->id);
+
             break;
         case symbol_native:
-            compiler_flag_on(self, cgen_lhs_native);
+            hints |= cgen_lhs_native;
             // ? NOTE: The pushed ID is for a global procedure, VM or native.
             compiler_emit_op_unflagged(self, pg, op_load_imm_gid, temp_locus->id);
+
             break;
         case symbol_string:
             compiler_emit_op_unflagged(self, pg, op_load_string_k, temp_locus->id);
+
             break;
         default:
             break;
     }
 
-    return 1;
+    return hints;
 }
 
-int8_t compiler_do_lhs(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
-    // int8_t is_on_assignment_lhs = compiler_flag_of(self, cgen_assign_to);
-
-    if (!compiler_do_literal(self, lexer, s, pg)) {
-        fprintf(stderr, "Note: See LHS of access-of expression at line %d.\n", self->curr.line);
-        return 0;
+uint8_t compiler_do_lhs(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
+    const CompHints target_hints = compiler_do_literal(self, lexer, s, pg, hints);
+    if (!compile_hints_check_flag(target_hints, cgen_visit_ok)) {
+        fprintf(stderr, "\tNote: See LHS of access-of expression at line %d.\n", self->curr.line);
+        return target_hints;
     }
 
-    if (!compiler_match_prev(self, tk_identifier)) {
-        if (!compiler_match_curr(self, tk_os_bind_equals)) {
-            compiler_flag_off(self, cgen_assign_to);
-        }
-
-        return 1;
-    } else if (compiler_match_curr(self, tk_os_bind_equals)) {
-        return 1;
+    if (compiler_match_curr(self, tk_os_bind_equals) && compile_hints_check_flag(target_hints, cgen_assign_to)) {
+        return target_hints;
     }
 
-    if (compiler_flag_of(self, cgen_lhs_local)) {
+    if (compile_hints_check_flag(target_hints, cgen_lhs_local)) {
         compiler_emit_op_flagged(self, pg, op_load_local, 0, self->saved_id);
-        compiler_flag_off(self, cgen_lhs_local);
-        compiler_flag_on(self, cgen_access_of);
     }
+
+    CompHints access_hints = target_hints;
 
     while (!compiler_match_curr(self, tk_eof)) {
         if (!compiler_match_curr(self, tk_lbrack)) {
@@ -643,9 +520,12 @@ int8_t compiler_do_lhs(Compiler *self, Lexer *lexer, const charspan *s, Program 
         }
         compiler_eat_tk(self, lexer, s);
 
-        if (!compiler_do_or(self, lexer, s, pg)) {
-            fprintf(stderr, "Note: See RHS of access-of expression at line %d.\n", self->curr.line);
-            return 0;
+        access_hints |= cgen_access_of;
+
+        const CompHints key_hints = compiler_do_or(self, lexer, s, pg, access_hints);
+        if (!compile_hints_check_flag(key_hints, cgen_visit_ok)) {
+            fprintf(stderr, "\tNote: See RHS of access-of expression at line %d.\n", self->curr.line);
+            return key_hints;
         }
 
         if (compiler_match_curr(self, tk_rbrack)) {
@@ -653,30 +533,27 @@ int8_t compiler_do_lhs(Compiler *self, Lexer *lexer, const charspan *s, Program 
         }
 
         if (compiler_match_curr(self, tk_os_bind_equals)) {
-            compiler_flag_on(self, cgen_assign_to);
+            access_hints |= cgen_assign_to;
         } else {
             compiler_emit_op(self, pg, op_get_idx);
         }
     }
 
-    compiler_flag_on(self, cgen_access_of);
-
-    return 1;
+    return access_hints;
 }
 
-int8_t compiler_do_call(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
+uint8_t compiler_do_call(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
     const Token callee_name = self->curr;
     int arg_count = 0;
 
-    if (!compiler_do_lhs(self, lexer, s, pg)) {
-        fprintf(stderr, "Note: See call at line %d.\n", self->curr.line);
-        return 0;
+    const CompHints lhs_hints = compiler_do_lhs(self, lexer, s, pg, hints);
+    if (!compile_hints_check_flag(lhs_hints, cgen_visit_ok)) {
+        fprintf(stderr, "\tNote See call at line %d.\n", self->curr.line);
+        return lhs_hints;
     }
 
-    int8_t outer_callee_is_native = compiler_flag_of(self, cgen_lhs_native);
-
     if (!compiler_match_curr(self, tk_lparen)) {
-        return 1;
+        return lhs_hints;
     }
     compiler_eat_tk(self, lexer, s);
 
@@ -685,11 +562,10 @@ int8_t compiler_do_call(Compiler *self, Lexer *lexer, const charspan *s, Program
             break;
         }
 
-        compiler_flag_off(self, cgen_lhs_native);
-
-        if (!compiler_do_compare(self, lexer, s, pg)) {
-            fprintf(stderr, "Note: See call at line %d.\n", callee_name.line);
-            return 0;
+        const CompHints call_hints = compiler_do_compare(self, lexer, s, pg, hints);
+        if (!compile_hints_check_flag(call_hints, cgen_visit_ok)) {
+            fprintf(stderr, "\tNote See call at line %d.\n", callee_name.line);
+            return call_hints;
         }
 
         arg_count++;
@@ -701,39 +577,38 @@ int8_t compiler_do_call(Compiler *self, Lexer *lexer, const charspan *s, Program
 
     compiler_eat_tk(self, lexer, s);
 
-    if (outer_callee_is_native) {
-        compiler_flag_on(self, cgen_lhs_native);
-    }
+    const uint8_t callee_is_native = compile_hints_check_flag(lhs_hints, cgen_lhs_native);
 
-    compiler_emit_op_flagged(self, pg, op_call, compiler_flag_of(self, cgen_lhs_native), arg_count);
-    compiler_flag_off(self, cgen_lhs_native);
+    compiler_emit_op_flagged(self, pg, op_call, callee_is_native, arg_count);
 
-    return 1;
+    return hints & ~cgen_assign_to;
 }
 
-int8_t compiler_do_unary(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
+uint8_t compiler_do_unary(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
     if (compiler_match_curr(self, tk_os_nullish)) {
         compiler_eat_tk(self, lexer, s);
 
-        if (!compiler_do_call(self, lexer, s, pg)) {
-            return 0;
+        const CompHints maybe_call_hints = compiler_do_call(self, lexer, s, pg, hints);
+        if (!compile_hints_check_flag(maybe_call_hints, cgen_visit_ok)) {
+            return maybe_call_hints;
         }
 
         compiler_emit_op(self, pg, op_chk_none);
 
-        return 1;
+        return hints;
     }
 
-    return compiler_do_call(self, lexer, s, pg);
+    return compiler_do_call(self, lexer, s, pg, hints);
 }
 
-int8_t compiler_do_null_coal(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
-    if (!compiler_do_unary(self, lexer, s, pg)) {
-        return 0;
+uint8_t compiler_do_null_coal(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
+    const CompHints lhs_hints = compiler_do_unary(self, lexer, s, pg, hints);
+    if (!compile_hints_check_flag(lhs_hints, cgen_visit_ok)) {
+        return lhs_hints;
     }
 
     if (!compiler_match_curr(self, tk_os_nullcol)) {
-        return 1;
+        return lhs_hints;
     }
     compiler_eat_tk(self, lexer, s);
 
@@ -744,8 +619,9 @@ int8_t compiler_do_null_coal(Compiler *self, Lexer *lexer, const charspan *s, Pr
     compiler_emit_op_unflagged(self, pg, op_jmp_false, 0);
     compiler_emit_op_flagged(self, pg, op_pop, 1, 0);
 
-    if (!compiler_do_unary(self, lexer, s, pg)) {
-        return 0;
+    const CompHints rhs_hints = compiler_do_unary(self, lexer, s, pg, hints);
+    if (!compile_hints_check_flag(rhs_hints, cgen_visit_ok)) {
+        return rhs_hints;
     }
 
     const uint16_t jump_past_pop_pos = pg->chunks.data[self->chunk_idx].code.length;
@@ -759,12 +635,13 @@ int8_t compiler_do_null_coal(Compiler *self, Lexer *lexer, const charspan *s, Pr
     // ? Patch pop-skipping jump to avoid incorrectly popping a non-NIL RHS.
     pg->chunks.data[self->chunk_idx].code.data[jump_past_pop_pos].wide = (jump_nil_end_pos + 1) - jump_past_pop_pos;
 
-    return 1;
+    return hints;
 }
 
-int8_t compiler_do_factor(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
-    if (!compiler_do_null_coal(self, lexer, s, pg)) {
-        return 0;
+uint8_t compiler_do_factor(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
+    const CompHints lhs_hints = compiler_do_null_coal(self, lexer, s, pg, hints);
+    if (!compile_hints_check_flag(lhs_hints, cgen_visit_ok)) {
+        return lhs_hints;
     }
 
     Opcode op;
@@ -783,18 +660,20 @@ int8_t compiler_do_factor(Compiler *self, Lexer *lexer, const charspan *s, Progr
         }
         compiler_eat_tk(self, lexer, s);
 
-        if (!compiler_do_null_coal(self, lexer, s, pg)) {
-            return 0;
+        const CompHints rhs_hints = compiler_do_null_coal(self, lexer, s, pg, hints);
+        if (!compile_hints_check_flag(rhs_hints, cgen_visit_ok)) {
+            return rhs_hints;
         }
         compiler_emit_op(self, pg, op);
     }
 
-    return 1;
+    return lhs_hints;
 }
 
-int8_t compiler_do_sum(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
-    if (!compiler_do_factor(self, lexer, s, pg)) {
-        return 0;
+uint8_t compiler_do_sum(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
+    const CompHints lhs_hints = compiler_do_factor(self, lexer, s, pg, hints);
+    if (!compile_hints_check_flag(lhs_hints, cgen_visit_ok)) {
+        return lhs_hints;
     }
 
     Opcode op;
@@ -813,18 +692,20 @@ int8_t compiler_do_sum(Compiler *self, Lexer *lexer, const charspan *s, Program 
         }
         compiler_eat_tk(self, lexer, s);
 
-        if (!compiler_do_factor(self, lexer, s, pg)) {
-            return 0;
+        const CompHints rhs_hints = compiler_do_factor(self, lexer, s, pg, hints);
+        if (!compile_hints_check_flag(rhs_hints, cgen_visit_ok)) {
+            return rhs_hints;
         }
         compiler_emit_op(self, pg, op);
     }
 
-    return 1;
+    return lhs_hints;
 }
 
-int8_t compiler_do_equality(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
-    if (!compiler_do_sum(self, lexer, s, pg)) {
-        return 0;
+uint8_t compiler_do_equality(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
+    const CompHints lhs_hints = compiler_do_sum(self, lexer, s, pg, hints);
+    if (!compile_hints_check_flag(lhs_hints, cgen_visit_ok)) {
+        return lhs_hints;
     }
 
     Opcode op;
@@ -843,18 +724,20 @@ int8_t compiler_do_equality(Compiler *self, Lexer *lexer, const charspan *s, Pro
         }
         compiler_eat_tk(self, lexer, s);
 
-        if (!compiler_do_sum(self, lexer, s, pg)) {
-            return 0;
+        const CompHints rhs_hints = compiler_do_sum(self, lexer, s, pg, hints);
+        if (!compile_hints_check_flag(rhs_hints, cgen_visit_ok)) {
+            return rhs_hints;
         }
         compiler_emit_op(self, pg, op);
     }
 
-    return 1;
+    return lhs_hints;
 }
 
-int8_t compiler_do_compare(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
-    if (!compiler_do_equality(self, lexer, s, pg)) {
-        return 0;
+uint8_t compiler_do_compare(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
+    const CompHints lhs_hints = compiler_do_equality(self, lexer, s, pg, hints);
+    if (!compile_hints_check_flag(lhs_hints, cgen_visit_ok)) {
+        return lhs_hints;
     }
 
     Opcode op;
@@ -873,22 +756,24 @@ int8_t compiler_do_compare(Compiler *self, Lexer *lexer, const charspan *s, Prog
         }
         compiler_eat_tk(self, lexer, s);
 
-        if (!compiler_do_equality(self, lexer, s, pg)) {
-            return 0;
+        const CompHints rhs_hints = compiler_do_equality(self, lexer, s, pg, hints);
+        if (!compile_hints_check_flag(rhs_hints, cgen_visit_ok)) {
+            return rhs_hints;
         }
         compiler_emit_op(self, pg, op);
     }
 
-    return 1;
+    return lhs_hints;
 }
 
-int8_t compiler_do_and(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
-    if (!compiler_do_compare(self, lexer, s, pg)) {
-        return 0;
+uint8_t compiler_do_and(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
+    const CompHints lhs_hints = compiler_do_compare(self, lexer, s, pg, hints);
+    if (!compile_hints_check_flag(lhs_hints, cgen_visit_ok)) {
+        return lhs_hints;
     }
 
     if (!compiler_match_curr(self, tk_os_and)) {
-        return 1;
+        return lhs_hints;
     }
     compiler_eat_tk(self, lexer, s);
 
@@ -896,8 +781,9 @@ int8_t compiler_do_and(Compiler *self, Lexer *lexer, const charspan *s, Program 
     compiler_emit_op_flagged(self, pg, op_jmp_false, 0, 0);
     compiler_emit_op_flagged(self, pg, op_pop, 1, 0); // ? Pop LHS if true, keeping our VM's "single result value" invariant.
 
-    if (!compiler_do_compare(self, lexer, s, pg)) {
-        return 0;
+    const CompHints rhs_hints = compiler_do_compare(self, lexer, s, pg, hints);
+    if (!compile_hints_check_flag(rhs_hints, cgen_visit_ok)) {
+        return rhs_hints;
     }
 
     const uint16_t falsy_jmp_end = pg->chunks.data[self->chunk_idx].code.length;
@@ -905,16 +791,17 @@ int8_t compiler_do_and(Compiler *self, Lexer *lexer, const charspan *s, Program 
 
     pg->chunks.data[self->chunk_idx].code.data[falsy_jmp_pos].wide = falsy_jmp_end - falsy_jmp_pos;
 
-    return 1;
+    return lhs_hints;
 }
 
-int8_t compiler_do_or(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
-    if (!compiler_do_and(self, lexer, s, pg)) {
-        return 0;
+uint8_t compiler_do_or(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
+    const CompHints lhs_hints = compiler_do_and(self, lexer, s, pg, hints);
+    if (!compile_hints_check_flag(lhs_hints, cgen_visit_ok)) {
+        return lhs_hints;
     }
 
     if (!compiler_match_curr(self, tk_os_or)) {
-        return 1;
+        return lhs_hints;
     }
     compiler_eat_tk(self, lexer, s);
 
@@ -922,8 +809,9 @@ int8_t compiler_do_or(Compiler *self, Lexer *lexer, const charspan *s, Program *
     compiler_emit_op_flagged(self, pg, op_jmp_if, 0, 0);
     compiler_emit_op_flagged(self, pg, op_pop, 1, 0); // ? Pop LHS if true, keeping our VM's "single result value" invariant.
 
-    if (!compiler_do_and(self, lexer, s, pg)) {
-        return 0;
+    const CompHints rhs_hints = compiler_do_and(self, lexer, s, pg, hints);
+    if (!compile_hints_check_flag(rhs_hints, cgen_visit_ok)) {
+        return rhs_hints;
     }
 
     const uint16_t truthy_jmp_end = pg->chunks.data[self->chunk_idx].code.length;
@@ -931,10 +819,10 @@ int8_t compiler_do_or(Compiler *self, Lexer *lexer, const charspan *s, Program *
 
     pg->chunks.data[self->chunk_idx].code.data[truthy_jmp_pos].wide = truthy_jmp_end - truthy_jmp_pos;
 
-    return 1;
+    return lhs_hints;
 }
 
-int8_t compiler_do_vars(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
+uint8_t compiler_do_vars(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
     compiler_eat_tk(self, lexer, s); // ? skip LET
 
     while (!compiler_match_curr(self, tk_eof)) {
@@ -942,7 +830,7 @@ int8_t compiler_do_vars(Compiler *self, Lexer *lexer, const charspan *s, Program
             break;
         } else if (!compiler_match_curr(self, tk_identifier)) {
             compiler_warn(self, "Expected name in variable declaration here.", &self->curr, s);
-            return 0;
+            return cgen_parse_err;
         }
 
         const Token var_name = self->curr;
@@ -957,12 +845,13 @@ int8_t compiler_do_vars(Compiler *self, Lexer *lexer, const charspan *s, Program
 
         if (!compiler_match_curr(self, tk_colon)) {
             compiler_warn(self, "Expected ':' before variable initializer.", &self->curr, s);
-            return 0;
+            return cgen_parse_err;
         }
         compiler_eat_tk(self, lexer, s);
 
-        if (!compiler_do_or(self, lexer, s, pg)) {
-            return 0;
+        const CompHints var_initializer_hints = compiler_do_or(self, lexer, s, pg, hints);
+        if (!compile_hints_check_flag(var_initializer_hints, cgen_visit_ok)) {
+            return var_initializer_hints;
         }
         compiler_emit_op_unflagged(self, pg, op_store_local, var_locus->id);
 
@@ -973,23 +862,25 @@ int8_t compiler_do_vars(Compiler *self, Lexer *lexer, const charspan *s, Program
 
     compiler_eat_tk(self, lexer, s);
 
-    return 1;
+    return hints;
 }
 
-int8_t compiler_do_ifs(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
+uint8_t compiler_do_ifs(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
     compiler_eat_tk(self, lexer, s); // ? skip IF
 
     const int cmp_line = self->curr.line;
-    if (!compiler_do_or(self, lexer, s, pg)) {
-        return 0;
+    const CompHints initial_check_hints = compiler_do_or(self, lexer, s, pg, hints);
+    if (!compile_hints_check_flag(initial_check_hints, cgen_visit_ok)) {
+        return initial_check_hints;
     }
 
     const uint16_t jump_else_pos = pg->chunks.data[self->chunk_idx].code.length;
     compiler_emit_op_flagged(self, pg, op_jmp_false, 0, 0);
     // compiler_emit_op_flagged(self, pg, op_pop, 1, 0);
 
-    if (!compiler_do_block(self, lexer, s, pg)) {
-        return 0;
+    const CompHints truthy_path_body_hints = compiler_do_block(self, lexer, s, pg, hints);
+    if (!compile_hints_check_flag(truthy_path_body_hints, cgen_visit_ok)) {
+        return truthy_path_body_hints;
     }
 
     if (!compiler_match_curr(self, tk_keyword_else)) {
@@ -998,7 +889,7 @@ int8_t compiler_do_ifs(Compiler *self, Lexer *lexer, const charspan *s, Program 
 
         pg->chunks.data[self->chunk_idx].code.data[jump_else_pos].wide = skip_tbody_pos - jump_else_pos;
 
-        return 1;
+        return hints;
     }
 
     // * BEGIN ELSE clause ... * //
@@ -1008,9 +899,10 @@ int8_t compiler_do_ifs(Compiler *self, Lexer *lexer, const charspan *s, Program 
     compiler_emit_op_unflagged(self, pg, op_jmp, 0);
 
     const uint16_t begin_else_pos = jump_skip_else_pos + 1;
-    if (!compiler_do_nestable_stmt(self, lexer, s, pg)) {
-        fprintf(stderr, "Note: See else-clause in the falsy-body around line %d.\n", self->curr.line);
-        return 0;
+    const CompHints falsy_path_stmt_hints = compiler_do_nestable_stmt(self, lexer, s, pg, hints);
+    if (!compile_hints_check_flag(falsy_path_stmt_hints, cgen_visit_ok)) {
+        fprintf(stderr, "\tNote See else-clause in the falsy-body around line %d.\n", self->curr.line);
+        return falsy_path_stmt_hints;
     }
 
     const uint16_t end_ifs_pos = pg->chunks.data[self->chunk_idx].code.length;
@@ -1019,28 +911,30 @@ int8_t compiler_do_ifs(Compiler *self, Lexer *lexer, const charspan *s, Program 
     pg->chunks.data[self->chunk_idx].code.data[jump_else_pos].wide = begin_else_pos - jump_else_pos;
     pg->chunks.data[self->chunk_idx].code.data[jump_skip_else_pos].wide = end_ifs_pos - jump_skip_else_pos;
 
-    return 1;
+    return hints;
 }
 
-int8_t compiler_do_while(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
+uint8_t compiler_do_while(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
     compiler_eat_tk(self, lexer, s); // ? skip WHILE
 
     ActiveLoop *loop_data = compiler_enter_loop(self);
 
     const uint16_t while_check_pos = pg->chunks.data[self->chunk_idx].code.length;
-    if (!compiler_do_or(self, lexer, s, pg)) {
-        fprintf(stderr, "Note: See while-loop condition around line %d.\n", self->curr.line);
+    const CompHints loop_cond_hints = compiler_do_or(self, lexer, s, pg, hints);
+    if (!compile_hints_check_flag(loop_cond_hints, cgen_visit_ok)) {
+        fprintf(stderr, "\tNote See while-loop condition around line %d.\n", self->curr.line);
         compiler_leave_loop(self);
-        return 0;
+        return loop_cond_hints;
     }
 
     const uint16_t while_jmp_out_pos = pg->chunks.data[self->chunk_idx].code.length;
     compiler_emit_op_flagged(self, pg, op_jmp_false, 0, 0); // ? flags = 0 ==> forward jump applies!
 
-    if (!compiler_do_block(self, lexer, s, pg)) {
-        fprintf(stderr, "Note: See while-body around line %d.\n", self->curr.line);
+    const CompHints loop_body_hints = compiler_do_block(self, lexer, s, pg, hints);
+    if (!compile_hints_check_flag(loop_body_hints, cgen_visit_ok)) {
+        fprintf(stderr, "\tNote See while-body around line %d.\n", self->curr.line);
         compiler_leave_loop(self);
-        return 0;
+        return loop_body_hints;
     }
 
     // ? 1. Patch 2 main loop jumps: the repeat & exit...
@@ -1069,29 +963,20 @@ int8_t compiler_do_while(Compiler *self, Lexer *lexer, const charspan *s, Progra
     }
 
     compiler_leave_loop(self);
-    return 1;
+    return hints;
 }
 
-/*
- * ### EXAMPLE:
- * `FOR i : 0, i < 10, i := i + 1; :`
- *
- * `print(i);`
- *
- * `END`
- *
- */
-int8_t compiler_do_for(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
+uint8_t compiler_do_for(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
     compiler_eat_tk(self, lexer, s); // ? skip FOR
 
     ActiveLoop *loop_data = compiler_enter_loop(self);
 
     if (!compiler_match_curr(self, tk_identifier)) {
         compiler_warn(self, "Expected name for counter variable in C-style for loop here.", &self->curr, s);
-        fprintf(stderr, "\tNote: See line %d.\n", self->curr.line);
+        fprintf(stderr, "\tNote See line %d.\n", self->curr.line);
 
         compiler_leave_loop(self);
-        return 0;
+        return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer, s);
 
@@ -1107,15 +992,15 @@ int8_t compiler_do_for(Compiler *self, Lexer *lexer, const charspan *s, Program 
         fprintf(stderr, "\tNote: See line %d.\n", self->curr.line);
 
         compiler_leave_loop(self);
-        return 0;
+        return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer, s);
 
-    if (!compiler_do_or(self, lexer, s, pg)) {
+    if (!compiler_do_or(self, lexer, s, pg, hints)) {
         fprintf(stderr, "\tNote: invalid initializer of FOR loop counter around line %d.\n", self->prev.line);
 
         compiler_leave_loop(self);
-        return 0;
+        return cgen_dead;
     }
 
     if (counter_info->domain == symbol_local) {
@@ -1123,22 +1008,23 @@ int8_t compiler_do_for(Compiler *self, Lexer *lexer, const charspan *s, Program 
     } else {
         compiler_warn(self, "Invalid name of loop counter around here- shadows a similar non-local name.", &self->prev, s);
         fprintf(stderr, "\tNote: see line %d.\n", counter_name_line);
-        return 0;
+        return cgen_dead;
     }
 
     if (!compiler_match_curr(self, tk_comma)) {
         compiler_warn(self, "Expected ',' after counter in FOR loop here.", &self->curr, s);
         fprintf(stderr, "\tNote: see line %d.\n", self->curr.line);
-        return 0;
+        return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer, s);
 
     const uint16_t loop_begin_pos = pg->chunks.data[self->chunk_idx].code.length;
-    if (!compiler_do_or(self, lexer, s, pg)) {
+    const CompHints loop_cond_hints = compiler_do_or(self, lexer, s, pg, hints);
+    if (!compile_hints_check_flag(loop_cond_hints, cgen_visit_ok)) {
         fprintf(stderr, "\tNote: invalid condition of FOR loop around line %d.\n", self->prev.line);
 
         compiler_leave_loop(self);
-        return 0;
+        return loop_cond_hints;
     }
     const uint16_t loop_jump_out_pos = pg->chunks.data[self->chunk_idx].code.length;
     compiler_emit_op_unflagged(self, pg, op_jmp_false, 0);
@@ -1146,7 +1032,7 @@ int8_t compiler_do_for(Compiler *self, Lexer *lexer, const charspan *s, Program 
     if (!compiler_match_curr(self, tk_comma)) {
         compiler_warn(self, "Expected ',' after check in FOR loop here.", &self->curr, s);
         fprintf(stderr, "\tNote: see line %d.\n", self->curr.line);
-        return 0;
+        return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer, s);
 
@@ -1155,11 +1041,13 @@ int8_t compiler_do_for(Compiler *self, Lexer *lexer, const charspan *s, Program 
 
     const uint16_t loop_start_update_pos = pg->chunks.data[self->chunk_idx].code.length;
     compiler_emit_op_unflagged(self, pg, op_nop, 0);
-    if (!compiler_do_expr_stmt(self, lexer, s, pg)) {
+
+    const CompHints update_clause_hints = compiler_do_expr_stmt(self, lexer, s, pg, hints);
+    if (!compile_hints_check_flag(update_clause_hints, cgen_visit_ok)) {
         fprintf(stderr, "\tNote: invalid update clause of FOR loop around line %d.\n", self->prev.line);
 
         compiler_leave_loop(self);
-        return 0;
+        return update_clause_hints;
     }
     // ? Emit & easily patch "loop-repeater" jump AFTER update evaluations...
     const uint16_t loop_repeater_pos = pg->chunks.data[self->chunk_idx].code.length;
@@ -1167,11 +1055,12 @@ int8_t compiler_do_for(Compiler *self, Lexer *lexer, const charspan *s, Program 
     // ? Patch the jump at loop_skip_update_pos since the update clause was fully resolved here...
     pg->chunks.data[self->chunk_idx].code.data[loop_skip_update_pos].wide = loop_repeater_pos + 1 - loop_skip_update_pos;
 
-    if (!compiler_do_block(self, lexer, s, pg)) {
+    const CompHints for_body_hints = compiler_do_block(self, lexer, s, pg, hints);
+    if (!compile_hints_check_flag(for_body_hints, cgen_visit_ok)) {
         fprintf(stderr, "\tNote: invalid body of FOR loop around line %d.\n", self->prev.line);
 
         compiler_leave_loop(self);
-        return 0;
+        return for_body_hints;
     }
 
     // ? Patch returning jump to update clause after body evaluation...
@@ -1200,22 +1089,22 @@ int8_t compiler_do_for(Compiler *self, Lexer *lexer, const charspan *s, Program 
     }
 
     compiler_leave_loop(self);
-    return 1;
+    return hints;
 }
 
-int8_t compiler_do_break(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
+uint8_t compiler_do_break(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
     compiler_eat_tk(self, lexer, s); // ? skip BREAK
 
     if (AnyVec_ActiveLoop_empty(&self->loops)) {
         compiler_warn(self, "Expected an enclosing loop for a 'BREAK' statement here.", &self->prev, s);
         fprintf(stderr, "\tNote: see line %d.\n", self->prev.line);
-        return 0;
+        return cgen_dead;
     }
 
     if (!compiler_match_curr(self, tk_semicolon)) {
         compiler_warn(self, "Expected a ';' closing a 'BREAK' statement here.", &self->prev, s);
         fprintf(stderr, "\tNote: see line %d.\n", self->prev.line);
-        return 0;
+        return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer, s);
 
@@ -1223,22 +1112,22 @@ int8_t compiler_do_break(Compiler *self, Lexer *lexer, const charspan *s, Progra
     compiler_track_break_pos(self, break_bc_pos);
     compiler_emit_op_unflagged(self, pg, op_jmp, 0);
 
-    return 1;
+    return hints;
 }
 
-int8_t compiler_do_continue(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
+uint8_t compiler_do_continue(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
     compiler_eat_tk(self, lexer, s); // ? skip BREAK
 
     if (AnyVec_ActiveLoop_empty(&self->loops)) {
         compiler_warn(self, "Expected an enclosing loop for a 'CONTINUE' statement here.", &self->prev, s);
         fprintf(stderr, "\tNote: see line %d.\n", self->prev.line);
-        return 0;
+        return cgen_dead;
     }
 
     if (!compiler_match_curr(self, tk_semicolon)) {
         compiler_warn(self, "Expected a ';' closing a 'BREAK' statement here.", &self->prev, s);
         fprintf(stderr, "\tNote: see line %d.\n", self->prev.line);
-        return 0;
+        return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer, s);
 
@@ -1246,36 +1135,36 @@ int8_t compiler_do_continue(Compiler *self, Lexer *lexer, const charspan *s, Pro
     compiler_track_continue_pos(self, continue_bc_pos);
     compiler_emit_op_unflagged(self, pg, op_jmp, 0);
 
-    return 1;
+    return hints;
 }
 
-int8_t compiler_do_ret(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
+uint8_t compiler_do_ret(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
     compiler_eat_tk(self, lexer, s); // ? skip RET
 
-    compiler_flag_off(self, cgen_assign_to);
-    if (!compiler_do_or(self, lexer, s, pg)) {
-        fprintf(stderr, "Note: See return-result expression at line %d.\n", self->curr.line);
-        fprintf(stderr, "\tNote: see line %d.\n", self->prev.line);
-        return 0;
+    const CompHints result_hints = compiler_do_or(self, lexer, s, pg, hints & ~cgen_assign_to);
+    if (!compile_hints_check_flag(result_hints, cgen_visit_ok)) {
+        fprintf(stderr, "\tNote 1: See return-result expression at line %d.\n", self->curr.line);
+        return result_hints;
     }
     compiler_emit_op(self, pg, op_ret);
 
     if (!compiler_match_curr(self, tk_semicolon)) {
         compiler_warn(self, "Expected ';' after return statement.", &self->curr, s);
         fprintf(stderr, "\tNote: see line %d.\n", self->curr.line);
-        return 0;
+        return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer, s);
 
-    return 1;
+    return hints;
 }
 
-int8_t compiler_do_throw(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
+uint8_t compiler_do_throw(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
     const int throw_stmt_line = self->curr.line;
     compiler_eat_tk(self, lexer, s); // ? skip 'THROW'
 
-    if (!compiler_do_or(self, lexer, s, pg)) {
-        return 0;
+    const CompHints thrown_hints = compiler_do_or(self, lexer, s, pg, hints);
+    if (!compile_hints_check_flag(thrown_hints, cgen_visit_ok)) {
+        return thrown_hints;
     }
 
     compiler_emit_op_unflagged(self, pg, op_raise_err, throw_stmt_line);
@@ -1283,19 +1172,20 @@ int8_t compiler_do_throw(Compiler *self, Lexer *lexer, const charspan *s, Progra
     if (!compiler_match_curr(self, tk_semicolon)) {
         compiler_warn(self, "Expected ';' after THROW-stmt.", &self->curr, s);
         fprintf(stderr, "\tNote: see line %d.\n", self->curr.line);
-        return 0;
+        return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer, s);
 
-    return 1;
+    return hints;
 }
 
-int8_t compiler_do_try_catch(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
+uint8_t compiler_do_try_catch(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
     compiler_eat_tk(self, lexer, s); // ? skip TRY
 
     const int try_clause_line = self->prev.line;
-    if (!compiler_do_block(self, lexer, s, pg)) {
-        return 0;
+    const CompHints try_block_hints = compiler_do_block(self, lexer, s, pg, hints);
+    if (!compile_hints_check_flag(try_block_hints, cgen_visit_ok)) {
+        return try_block_hints;
     }
 
     const int jump_skip_catch_ip = pg->chunks.data[self->chunk_idx].code.length;
@@ -1305,119 +1195,92 @@ int8_t compiler_do_try_catch(Compiler *self, Lexer *lexer, const charspan *s, Pr
     if (!compiler_match_curr(self, tk_keyword_catch)) {
         compiler_warn(self, "Expected 'CATCH' after throwable 'TRY' clause.", &self->curr, s);
         fprintf(stderr, "\tNote: see line %d.\n", self->curr.line);
-        return 0;
+        return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer, s);
 
-    if (!compiler_do_block(self, lexer, s, pg)) {
-        return 0;
+    const CompHints catch_body_hints = compiler_do_block(self, lexer, s, pg, hints);
+    if (!compile_hints_check_flag(catch_body_hints, cgen_visit_ok)) {
+        return catch_body_hints;
     }
 
     const int end_catch_ip = pg->chunks.data[self->chunk_idx].code.length;
     pg->chunks.data[self->chunk_idx].code.data[jump_skip_catch_ip].wide = end_catch_ip - jump_skip_catch_ip;
 
-    return 1;
+    return hints;
 }
 
-int8_t compiler_do_expr_stmt(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
+uint8_t compiler_do_expr_stmt(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
     // ? Process / emit LHS first...
-    compiler_flag_on(self, cgen_assign_to);
-    if (!compiler_do_or(self, lexer, s, pg)) {
-        compiler_flag_off(self, cgen_assign_to);
-        fprintf(stderr, "See expr-stmt at line %d.\n", self->curr.line);
-        return 0;
+    const CompHints dest_hints = compiler_do_or(self, lexer, s, pg, hints | cgen_assign_to);
+    if (!compile_hints_check_flag(dest_hints, cgen_visit_ok)) {
+        fprintf(stderr, "\tNote: See expr-stmt at line %d.\n", self->curr.line);
+        return dest_hints;
     }
 
     if (compiler_match_curr(self, tk_os_bind_equals)) {
         compiler_eat_tk(self, lexer, s);
 
-        const int8_t lhs_has_target_local_old = compiler_flag_of(self, cgen_lhs_local);
-        const int8_t lhs_had_accesses_of = compiler_flag_of(self, cgen_access_of);
-        const int8_t lhs_is_assignable_old = compiler_flag_of(self, cgen_assign_to);
-
-        compiler_flag_off(self, cgen_lhs_local);
-        compiler_flag_off(self, cgen_access_of);
-        compiler_flag_off(self, cgen_assign_to);
-
-        if (!compiler_do_or(self, lexer, s, pg)) {
-            fprintf(stderr, "Note: see RHS of assignment at line %d.\n", self->curr.line);
-            return 0;
-        }
-
-        if (lhs_is_assignable_old) {
-            compiler_flag_on(self, cgen_assign_to);
-        }
-
-        if (lhs_had_accesses_of) {
-            compiler_flag_on(self, cgen_access_of);
-        }
-
-        if (lhs_has_target_local_old) {
-            compiler_flag_on(self, cgen_lhs_local);
+        const CompHints assign_src_hints = compiler_do_or(self, lexer, s, pg, hints & ~cgen_assign_to);
+        if (!compile_hints_check_flag(assign_src_hints, cgen_visit_ok)) {
+            fprintf(stderr, "\tNote: see RHS of assignment at line %d.\n", self->curr.line);
+            return assign_src_hints;
         }
 
         // ? If we have consumed only a name = <value>, emit a simple update of that local slot.
-        if (compiler_flag_of(self, cgen_lhs_local)) {
+        if (compile_hints_check_flag(dest_hints, cgen_lhs_local)) {
             compiler_emit_op_flagged(self, pg, op_store_local, 0, self->saved_id);
-            compiler_flag_off(self, cgen_lhs_local);
-        } else if (compiler_flag_of(self, cgen_access_of)) {
+        } else if (compile_hints_check_flag(dest_hints, cgen_access_of)) {
             compiler_emit_op(self, pg, op_set_idx);
-            compiler_flag_off(self, cgen_access_of);
         } else {
             compiler_warn(self, "Invalid LHS of assignment, expected a name or key-access expression.\n", &self->prev, s);
             fprintf(stderr, "\tNote: see line %d.\n", self->prev.line);
-            compiler_flag_off(self, cgen_lhs_local);
-            compiler_flag_off(self, cgen_access_of);
-            return 0;
+            return cgen_dead;
         }
-
-        compiler_flag_off(self, cgen_lhs_local);
-        compiler_flag_off(self, cgen_access_of);
-        compiler_flag_off(self, cgen_assign_to);
     }
 
     if (!compiler_match_curr(self, tk_semicolon)) {
         compiler_warn(self, "Expected ';' after expr-stmt.", &self->curr, s);
         fprintf(stderr, "\tNote: see line %d.\n", self->curr.line);
-        return 0;
+        return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer, s);
 
-    return 1;
+    return hints;
 }
 
-int8_t compiler_do_nestable_stmt(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
+uint8_t compiler_do_nestable_stmt(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
     switch (self->curr.tag) {
     case tk_keyword_let:
-        return compiler_do_vars(self, lexer, s, pg);
+        return compiler_do_vars(self, lexer, s, pg, hints);
     case tk_keyword_if:
-        return compiler_do_ifs(self, lexer, s, pg);
+        return compiler_do_ifs(self, lexer, s, pg, hints);
     case tk_keyword_while:
-        return compiler_do_while(self, lexer, s, pg);
+        return compiler_do_while(self, lexer, s, pg, hints);
     case tk_keyword_for:
-        return compiler_do_for(self, lexer, s, pg);
+        return compiler_do_for(self, lexer, s, pg, hints);
     case tk_keyword_break:
-        return compiler_do_break(self, lexer, s, pg);
+        return compiler_do_break(self, lexer, s, pg, hints);
     case tk_keyword_continue:
-        return compiler_do_continue(self, lexer, s, pg);
+        return compiler_do_continue(self, lexer, s, pg, hints);
     case tk_keyword_ret:
-        return compiler_do_ret(self, lexer, s, pg);
+        return compiler_do_ret(self, lexer, s, pg, hints);
     case tk_keyword_throw:
-        return compiler_do_throw(self, lexer, s, pg);
+        return compiler_do_throw(self, lexer, s, pg, hints);
     case tk_keyword_try:
-        return compiler_do_try_catch(self, lexer, s, pg);
+        return compiler_do_try_catch(self, lexer, s, pg, hints);
     case tk_colon:
-        return compiler_do_block(self, lexer, s, pg);
+        return compiler_do_block(self, lexer, s, pg, hints);
     default:
-        return compiler_do_expr_stmt(self, lexer, s, pg);
+        return compiler_do_expr_stmt(self, lexer, s, pg, hints);
     }
 }
 
-int8_t compiler_do_block(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
+uint8_t compiler_do_block(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
     if (!compiler_match_curr(self, tk_colon)) {
         compiler_warn(self, "Expected ':' starting block.", &self->curr, s);
         fprintf(stderr, "\tNote: see line %d.\n", self->curr.line);
-        return 0;
+        return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer, s);
 
@@ -1433,25 +1296,25 @@ int8_t compiler_do_block(Compiler *self, Lexer *lexer, const charspan *s, Progra
         }
 
         const int stmt_line = self->curr.line;
-        if (!compiler_do_nestable_stmt(self, lexer, s, pg)) {
-            fprintf(stderr, "Note: See nested statement in block body around line %d.\n", stmt_line);
-            return 0;
+        if (!compiler_do_nestable_stmt(self, lexer, s, pg, hints)) {
+            fprintf(stderr, "\tNote: See nested statement in block body around line %d.\n", stmt_line);
+            return cgen_dead;
         }
 
         stmt_count++;
     }
     compiler_eat_tk(self, lexer, s);
 
-    return 1;
+    return hints;
 }
 
-int8_t compiler_do_func(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
+uint8_t compiler_do_func(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
     compiler_eat_tk(self, lexer, s); // ? skip FUN
 
     if (!compiler_match_curr(self, tk_identifier)) {
         compiler_warn(self, "Expected name for FUN declaration.", &self->curr, s);
         fprintf(stderr, "\tNote: see line %d.\n", self->curr.line);
-        return 0;
+        return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer, s);
 
@@ -1469,7 +1332,7 @@ int8_t compiler_do_func(Compiler *self, Lexer *lexer, const charspan *s, Program
     compiler_record_function(self, pg, &name_lexeme, self->chunk_idx);
 
     if (!compiler_match_curr(self, tk_lparen)) {
-        return 0;
+        return cgen_dead;
     }
     compiler_eat_tk(self, lexer, s);
 
@@ -1479,7 +1342,7 @@ int8_t compiler_do_func(Compiler *self, Lexer *lexer, const charspan *s, Program
         } else if (!compiler_match_curr(self, tk_identifier)) {
             compiler_warn(self, "Expected name in params list here.", &self->curr, s);
             fprintf(stderr, "\tNote: see line %d.\n", self->curr.line);
-            return 0;
+            return cgen_parse_err;
         }
         
         // ? Eat checked identifier token here, as it's simpler to process it as self->curr.
@@ -1502,43 +1365,45 @@ int8_t compiler_do_func(Compiler *self, Lexer *lexer, const charspan *s, Program
     self->locals.var_alloc_ip = pg->chunks.data[self->chunk_idx].code.length;
     compiler_emit_op_unflagged(self, pg, op_reserve, 0);
 
-    if (!compiler_do_block(self, lexer, s, pg)) {
-        fprintf(stderr, "Note: See in FUN declaration around line %d.\n", self->curr.line);
-        return 0;
+    if (!compiler_do_block(self, lexer, s, pg, hints)) {
+        fprintf(stderr, "\tNote: See in FUN declaration around line %d.\n", self->curr.line);
+        return cgen_dead;
     } else {
         compiler_patch_reserve_inst(self, &self->locals, pg);
         symbol_table_clear(&self->locals);
         self->chunk_idx = 0;
     }
 
-    return 1;
+    return hints;
 }
 
-int8_t compiler_do_stmt(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
+uint8_t compiler_do_stmt(Compiler *self, Lexer *lexer, const charspan *s, Program *pg, CompHints hints) {
     switch (self->curr.tag) {
     case tk_keyword_let:
-        return compiler_do_vars(self, lexer, s, pg);
+        return compiler_do_vars(self, lexer, s, pg, hints);
     case tk_keyword_if:
-        return compiler_do_ifs(self, lexer, s, pg);
+        return compiler_do_ifs(self, lexer, s, pg, hints);
     case tk_keyword_while:
-        return compiler_do_while(self, lexer, s, pg);
+        return compiler_do_while(self, lexer, s, pg, hints);
     case tk_keyword_for:
-        return compiler_do_for(self, lexer, s, pg);
+        return compiler_do_for(self, lexer, s, pg, hints);
     case tk_keyword_ret:
-        return compiler_do_ret(self, lexer, s, pg);
+        return compiler_do_ret(self, lexer, s, pg, hints);
     case tk_keyword_throw:
-        return compiler_do_throw(self, lexer, s, pg);
+        return compiler_do_throw(self, lexer, s, pg, hints);
     case tk_keyword_try:
-        return compiler_do_try_catch(self, lexer, s, pg);
+        return compiler_do_try_catch(self, lexer, s, pg, hints);
     case tk_keyword_fun:
-        return compiler_do_func(self, lexer, s, pg);
+        return compiler_do_func(self, lexer, s, pg, hints);
     default:
-        return compiler_do_expr_stmt(self, lexer, s, pg);
+        return compiler_do_expr_stmt(self, lexer, s, pg, hints);
     }
 }
 
 int8_t compiler_do_source(Compiler *self, Lexer *lexer, const charspan *s, Program *pg) {
-    compiler_eat_tk(self, lexer, s); // ? remove the unknown token placeholder by getting the 1st token into self->curr... this is needed for correct parsing --> bytecode
+    compiler_eat_tk(self, lexer, s); // ? remove the unknown token placeholder by getting the 1st token into self->curr... this is needed for correct parsing during bytecode emission.
+
+    CompHints initial_hints = cgen_visit_ok;
 
     // ! IMPORTANT: push an empty bytecode chunk so that an OOB terminate doesn't happen when ~ L248 tries to push a constant, etc. for AnyVec_<type>.
     Chunk temp;
@@ -1548,11 +1413,16 @@ int8_t compiler_do_source(Compiler *self, Lexer *lexer, const charspan *s, Progr
     self->locals.var_alloc_ip = pg->chunks.data[self->chunk_idx].code.length;
     compiler_emit_op_unflagged(self, pg, op_reserve, 0);
 
-    while (!compiler_match_curr(self, tk_eof)) {
-        if (!compiler_do_stmt(self, lexer, s, pg)) {
-            // ? Recover parsing by skipping to a LET declaration as a synchronization point.
+    while (!compiler_match_curr(self, tk_eof) && self->errors <= TBASIC_MAX_COMPILE_ERRORS) {
+        CompHints checked_hints = compiler_do_stmt(self, lexer, s, pg, initial_hints);
+        if (compile_hints_check_flag(checked_hints, cgen_dead)) {
+            fprintf(stderr, "\n\tFatal error, aborting.\n");
+            break;
+        } else if (compile_hints_check_flag(checked_hints, cgen_parse_err)) {
+            // ? Recover parsing by skipping to a FUN declaration as a synchronization point.
             while (!compiler_match_curr(self, tk_eof)) {
-                if (compiler_match_curr(self, tk_keyword_let)) {
+                if (compiler_match_curr(self, tk_keyword_fun)) {
+                    compiler_eat_tk(self, lexer, s);
                     break;
                 }
 
@@ -1565,7 +1435,7 @@ int8_t compiler_do_source(Compiler *self, Lexer *lexer, const charspan *s, Progr
     compiler_patch_reserve_inst(self, &self->locals, pg);
 
     pg->entry_id = 0;
-    
+
     fprintf(stderr, "Compilation finished with \x1b[1;31m%d\x1b[0m errors.\n\n", self->errors);
 
     return self->errors == 0;
