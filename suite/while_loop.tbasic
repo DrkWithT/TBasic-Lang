@@ -13,4 +13,4 @@ FUN fibIt(n):
     RET a;
 END
 
-RET fibIt(30);
+RET fibIt(30) == 832040;

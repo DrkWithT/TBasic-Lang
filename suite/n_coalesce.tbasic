@@ -2,9 +2,11 @@
 
 LET a : NIL, b : 1;
 
+LET tAB : a ?? b;
+print(tAB);
+
+LET tBAB : b ?? (a ?? b);
+print(tBAB);
+
 `both should be 1`
-
-print(a ?? b);
-print(b ?? (a ?? b));
-
-RET 0;
+RET tAB == 1 && tBAB == 1;

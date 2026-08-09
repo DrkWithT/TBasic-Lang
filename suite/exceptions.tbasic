@@ -7,10 +7,10 @@ FUN test(x):
 END
 
 TRY:
-    `should not print`
+    `should not print, etc.`
     print(test(67));
 END CATCH:
     print(ERR);
 END
 
-RET 0;
+RET TRUE;

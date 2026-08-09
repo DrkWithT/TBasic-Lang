@@ -7,4 +7,4 @@ WHILE count < end:
     count := count + 1;
 END
 
-RET 0;
+RET TRUE;

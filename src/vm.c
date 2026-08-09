@@ -1123,6 +1123,15 @@ void dispose_vm(VMState *s) {
     }
 }
 
+/// ! This is only meant for usage in `tbasic_invoke()` in `tb_api.h`.
+void restart_vm(VMState *s) {
+    s->sp = 0;
+    s->bp = 0;
+    s->error_oid = DUD_HEAP_ID;
+    s->depth = 1;
+    s->status = vm_status_pending;
+}
+
 VMStatus vm_status(const VMState *s) {
     return s->status;
 }

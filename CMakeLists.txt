@@ -27,11 +27,15 @@ if (DEFINED CREATE_TBASIC_SHARED)
         "${PROJECT_SOURCES}/obj_list.c"
         "${PROJECT_SOURCES}/obj_str.c"
         "${PROJECT_SOURCES}/obj_dict.c"
+        "${PROJECT_SOURCES}/obj_exception.c"
         "${PROJECT_SOURCES}/gc.c"
         "${PROJECT_SOURCES}/bytecode.c"
+        "${PROJECT_SOURCES}/compile_utils.c"
         "${PROJECT_SOURCES}/compiler.c"
+        "${PROJECT_SOURCES}/optimizer.c"
         "${PROJECT_SOURCES}/vm.c"
         "${PROJECT_SOURCES}/driver.c"
+        "${PROJECT_SOURCES}/load_bc.c"
     )
     set_target_properties(tbasic_lib PROPERTIES
         PUBLIC_HEADER "${PROJECT_INCLUDES}/tb_api.h"
@@ -54,10 +58,12 @@ else ()
         "${PROJECT_SOURCES}/obj_exception.c"
         "${PROJECT_SOURCES}/gc.c"
         "${PROJECT_SOURCES}/bytecode.c"
+        "${PROJECT_SOURCES}/compile_utils.c"
         "${PROJECT_SOURCES}/compiler.c"
         "${PROJECT_SOURCES}/optimizer.c"
         "${PROJECT_SOURCES}/vm.c"
         "${PROJECT_SOURCES}/driver.c"
+        "${PROJECT_SOURCES}/load_bc.c"
     )
 
     add_executable(tbasic)

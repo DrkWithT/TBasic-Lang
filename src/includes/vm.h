@@ -16,6 +16,7 @@ typedef enum vm_status_t : uint8_t {
     vm_status_err_bad_call,
     vm_status_err_abort,
     vm_status_err_throw,
+    vm_status_uninitialized
 } VMStatus;
 
 // ? Provides a forward decl. of VMState:
@@ -97,6 +98,8 @@ typedef struct vm_state_t {
 VMState make_vm(const Program *program, const NativeFn *native_table_ptr, int locals_max, uint8_t depth_max, int16_t heap_pop_max);
 
 void dispose_vm(VMState *s);
+
+void restart_vm(VMState *s);
 
 VMStatus vm_status(const VMState *s);
 

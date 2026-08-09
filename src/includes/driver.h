@@ -15,7 +15,7 @@
 #define CONFIG_DEFAULT_VM_RECUR_LIMIT 64
 #define CONFIG_DEFAULT_VM_HEAP_POPULATION 256
 #define TBASIC_VERSION_MAJOR 0
-#define TBASIC_VERSION_MINOR 9
+#define TBASIC_VERSION_MINOR 10
 #define TBASIC_VERSION_PATCH 1
 
 mystr read_file(const char *fname);
@@ -33,9 +33,9 @@ typedef struct driver_config_t {
 typedef enum driver_flag_t : uint8_t {
     dflag_info,
     dflag_dis_bc,
-    dflag_dump_bc,
     dflag_load_bc,
     dflag_run_bc,
+    dflag_invalid_opts,
     dflag_last,
 } DriverFlag;
 
@@ -45,12 +45,14 @@ STUB_SCALAR_VEC(NativeFn)
 
 typedef struct ts_driver_t {
     Compiler compiler;
+    VMState vm;
     Optimizer optimizer;
     ScalarVec_NativeFn natives;
     DriverConfig config;
     int8_t flags[dflag_last];
 } Driver;
 
+// ! WARNING: This function doesn't initialize `VMState vm` because it requires native functions, stack & heap sizing, etc. to be resolved later. Note that `tbasic_make_driver` from `tb_api.h` can be used for a reusable driver to use with `tbasic_invoke`.
 void driver_dud(Driver *d, const DriverConfig *config);
 void driver_del(Driver *d);
 

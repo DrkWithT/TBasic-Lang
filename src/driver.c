@@ -92,6 +92,7 @@ mystr read_file(const char *fname) {
 
 void driver_dud(Driver *d, const DriverConfig *config) {
     d->compiler = make_compiler();
+    d->vm.status = vm_status_uninitialized;
     optimizer_dud(&d->optimizer);
     ScalarVec_NativeFn_dud(&d->natives);
     d->config = *config;
@@ -100,6 +101,11 @@ void driver_dud(Driver *d, const DriverConfig *config) {
 
 void driver_del(Driver *d) {
     compiler_del(&d->compiler);
+
+    if (vm_status(&d->vm) != vm_status_uninitialized) {
+        dispose_vm(&d->vm);
+    }
+
     ScalarVec_NativeFn_del(&d->natives);
 }
 
@@ -163,44 +169,41 @@ int driver_run(Driver *d, const char *file_path) {
     Program code = driver_compile(d, file_path);
 
     if (code.entry_id == -1) {
+        driver_set_flag(d, dflag_invalid_opts, 1);
         return 1;
     }
 
     // TODO: add usage of other driver flags: dump / run bytecode files?
     if (driver_get_flag(d, dflag_dis_bc)) {
         dump_program(&code);
-        program_del(&code);
-        return 0;
     }
 
     if (!driver_get_flag(d, dflag_run_bc)) {
-        dump_program(&code);
         program_del(&code);
         return 0;
     }
 
-    VMState vm = make_vm(&code, d->natives.data, d->config.stack_capacity, d->config.recursion_max, d->config.heap_capacity);
+    d->vm = make_vm(&code, d->natives.data, d->config.stack_capacity, d->config.recursion_max, d->config.heap_capacity);
 
     struct timeval begin, end;
 
     gettimeofday(&begin, NULL);
-    const VMStatus status = vm_run(&vm);
+    const VMStatus status = vm_run(&d->vm);
     gettimeofday(&end, NULL);
 
     if (status == vm_status_ok) {
         puts("Result:");
-        const Value ans = vm_result(&vm);
-        print_value(&ans, &vm);
+        const Value ans = vm_result(&d->vm);
+        print_value(&ans, &d->vm);
     } else {
         puts("\x1b[1;31mUNCAUGHT TBasic ERROR:\x1b[0m");
-        print_object(heap_get(&vm.heap, vm.error_oid), &vm);
+        print_object(heap_get(&d->vm.heap, d->vm.error_oid), &d->vm);
     }
 
     const long end_usec = end.tv_sec * 1000000 + end.tv_usec;
     const long begin_usec = begin.tv_sec * 1000000 + begin.tv_usec;
     printf("\nDONE in %zu ms\n", (end_usec - begin_usec) / 1000);
 
-    dispose_vm(&vm);
     program_del(&code);
 
     return (status == vm_status_ok) ? 0 : 1;

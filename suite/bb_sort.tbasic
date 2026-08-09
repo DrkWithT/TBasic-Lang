@@ -50,4 +50,4 @@ print(sample);
 print("SORTED:");
 print(bbSort(sample, count));
 
-RET 0;
+RET TRUE;
