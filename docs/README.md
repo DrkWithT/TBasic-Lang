@@ -76,23 +76,13 @@ A very trivial scripting language implemented in C11. Only for educational purpo
 
 #### v0.11.x: QoL 4
  - Add destructuring of lists into a finite set of names & a ranged view.
- - Add viewing ranges and generative ranges (giving `NIL` if done):
+ - Add viewing ranges and list comprehensions
     - `*[list : 1 : 4]`, viewing 4 elements starting at position 1
     - `$[[1, 2, 3, 4, 5] | twice]`, generating 5 multiples of 2 
- - Add thunks:
+ - Add lambdas:
   ```
-    LET fooSum := THUNK (CTX, ...ARGV):
-      LET [a, b, ...rest] = ARGV;
-
-      RET CTX["x"] * a + CTX["y"] * b;
-    END;
-
-    print(UNTHUNK(fooSum, {"x": 3, "y": 7}, 1, 4));
-  ```
- - Add TASKS for timed-out operations:
-  ```
-    `timed out hello after 3s`
-    LET test := TASK (CTX, ...ARGV) AFTER 3000:
-      print("Hello");
+    LET foo = FUN (a, b):
+      RET a + b;
     END
   ```
+ - Add first-class async functions OR ye-old callback async APIs.
