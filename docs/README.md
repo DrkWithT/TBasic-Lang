@@ -73,6 +73,7 @@ A very trivial scripting language implemented in C11. Only for educational purpo
 #### v0.10.x: BIG Refactor
  - Refactor compiler to use cleaner tracking of flag changes, passing bitflags per callee.
  - Refactor VM to trampoline into native calls vs. doing a branch each time.
+ - Fix exceptions to not naively unwind out of the nearest `RET`. What if a `RET` is in a `TRY` and makes that exception falsely uncaught?
 
 #### v0.11.x: QoL 4
  - Add destructuring of lists into a finite set of names & a ranged view.

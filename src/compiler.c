@@ -1405,7 +1405,7 @@ int8_t compiler_do_source(Compiler *self, Lexer *lexer, const charspan *s, Progr
 
     CompHints initial_hints = cgen_visit_ok;
 
-    // ! IMPORTANT: push an empty bytecode chunk so that an OOB terminate doesn't happen when ~ L248 tries to push a constant, etc. for AnyVec_<type>.
+    // ! IMPORTANT: push an empty bytecode chunk so that an OOB terminate doesn't happen via accessing an empty code buf for top-level code.
     Chunk temp;
     Chunk_new(&temp); // ? initialize empty chunk
     AnyVec_Chunk_push(&pg->chunks, &temp); // ? copy the empty chunk into this Vec, but don't touch temp again... just did scuffed destructive moves??
