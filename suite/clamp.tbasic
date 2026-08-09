@@ -10,4 +10,4 @@ LET z : clampf(19.5, low, high);
 
 print(x, y, z);
 
-RET 0;
+RET TRUE;

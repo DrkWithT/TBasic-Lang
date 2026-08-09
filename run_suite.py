@@ -1,5 +1,6 @@
 """
     run_suite.py
+    Runs all TBasic suite snippets to test the interpreter.
     By: DrkWithT
 """
 
@@ -15,7 +16,7 @@ def get_test_names(test_suite_path: str = TEST_SUITE_DIR) -> list[str]:
     all_test_names = [
         f'{test_suite_path}/{test_case_filename}'
         for test_case_filename
-        in current_folder_entries if os.path.isdir(test_case_filename)
+        in current_folder_entries if not os.path.isdir(test_case_filename)
     ]
     
     return all_test_names

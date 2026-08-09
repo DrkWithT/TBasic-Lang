@@ -1,4 +1,4 @@
-`test dict lookup speed - microbench`
+`dict lookup speed benchmark`
 
 LET data : {
     "i" : 5000;

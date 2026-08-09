@@ -20,5 +20,4 @@ FUN collatz(n):
     RET hops;
 END
 
-`must be TRUE`
 RET collatz(27);

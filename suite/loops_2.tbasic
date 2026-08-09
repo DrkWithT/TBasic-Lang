@@ -30,10 +30,4 @@ FUN testB(y):
     RET j + old;
 END
 
-`these must have 5`
-
-print(testA(10), 5);
-
-print(testB(10), 5);
-
-RET 0;
+RET testA(10) == 5 && testB(10) == 5;

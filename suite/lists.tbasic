@@ -5,4 +5,4 @@ LET stuff : [100];
 stuff[0] := 1;
 
 `should be 1`
-RET stuff[0];
+RET stuff[0] == 1;
