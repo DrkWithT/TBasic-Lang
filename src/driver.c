@@ -125,15 +125,15 @@ Program driver_compile(Driver *d, const char *file_path) {
         };
     }
 
-    Program program;
-    program_dud(&program);
-
     charspan source_view;
     charspan_new(&source_view, file_source.data, file_source.length);
 
     Lexer tokenizer = make_lexer(&source_view, special_lexicals_v);
 
-    if (!compiler_do_source(&d->compiler, &tokenizer, &source_view, &program)) {
+    Program program = compiler_do_source(&d->compiler, &tokenizer, &source_view);
+
+    // todo: support module case where entry_id == -1
+    if (program.entry_id < 0) {
         charspan_del(&source_view);
         program_del(&program);
         mystr_del(&file_source);
@@ -141,7 +141,7 @@ Program driver_compile(Driver *d, const char *file_path) {
         return (Program) {
             .chunks = {NULL, 0, 0},
             .strings = {NULL, 0, 0},
-            .entry_id = -1
+            .entry_id = TBASIC_PG_MARK_INVALID
         };
     }
 
@@ -168,7 +168,7 @@ int driver_run(Driver *d, const char *file_path) {
 
     Program code = driver_compile(d, file_path);
 
-    if (code.entry_id == -1) {
+    if (code.entry_id == TBASIC_PG_MARK_INVALID) {
         driver_set_flag(d, dflag_invalid_opts, 1);
         return 1;
     }
