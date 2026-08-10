@@ -2,15 +2,20 @@
 
 FUN test(x):
     THROW "Testing exceptions!";
-    `unreachable, should not return`
+    `unreachable, should not return x`
     RET x;
 END
 
 TRY:
     `should not print, etc.`
     print(test(67));
+
+    `should not return`
+    RET FALSE;
+
 END CATCH:
     print(ERR);
+
 END
 
 RET TRUE;

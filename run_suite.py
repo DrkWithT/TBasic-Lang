@@ -16,7 +16,7 @@ def get_test_names(test_suite_path: str = TEST_SUITE_DIR) -> list[str]:
     all_test_names = [
         f'{test_suite_path}/{test_case_filename}'
         for test_case_filename
-        in current_folder_entries if not os.path.isdir(test_case_filename)
+        in current_folder_entries if not os.path.isdir(f'{test_suite_path}/{test_case_filename}') and test_case_filename[0] != '.'
     ]
     
     return all_test_names
