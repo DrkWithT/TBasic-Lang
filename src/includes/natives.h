@@ -33,11 +33,12 @@ static inline void native_print_str(const mystr *strings, int id) {
  * | Value(Int(1)) | <--- LOCAL_1 <--- CALLEE_BP + 1
  * | Value(Fun-ID) | <--- CALLEE_BP = SP - ARGC = SP - 3 <--- PUT "none"
  */
-static inline VMStatus native_print(VMState *s, int argc) {
-    const int callee_bp = s->sp - argc;
+static inline VMStatus native_print(VMState *s) {
+    const int callee_bp = s->bp;
+    const int argc = s->sp - s->bp;
 
-    for (int i = 0; i < argc; i++) {
-        const Value *arg_ref = s->stack + callee_bp + 1 + i;
+    for (int i = 1; i <= argc; i++) {
+        const Value *arg_ref = s->stack + callee_bp + i;
 
         print_value(arg_ref, s);
         printf(" ");
@@ -45,39 +46,39 @@ static inline VMStatus native_print(VMState *s, int argc) {
 
     printf("\n");
 
-    s->stack[callee_bp] = make_value_none();
-    s->sp = callee_bp;
+    s->sp++;
+    s->stack[s->sp] = make_value_none();
 
     return vm_status_pending;
 }
 
-static inline VMStatus native_powf(VMState *s, int argc) {
-    const int callee_bp = s->sp - argc;
+static inline VMStatus native_powf(VMState *s) {
+    const int callee_bp = s->bp;
     const Value a0 = s->stack[callee_bp + 1];
     const Value a1 = s->stack[callee_bp + 2];
 
-    if (a0.tag != vtag_real || a1.tag != vtag_real) {
-        s->stack[callee_bp] = make_value_real(NAN);
-    } else {
-        s->stack[callee_bp] = make_value_real(powf(a0.data.f, a1.data.f));
-    }
+    s->sp++;
 
-    s->sp = callee_bp;
+    if (a0.tag != vtag_real || a1.tag != vtag_real) {
+        s->stack[s->sp] = make_value_real(NAN);
+    } else {
+        s->stack[s->sp] = make_value_real(powf(a0.data.f, a1.data.f));
+    }
 
     return vm_status_pending;
 }
 
-static inline VMStatus native_sqrtf(VMState *s, int argc) {
-    const int callee_bp = s->sp - argc;
+static inline VMStatus native_sqrtf(VMState *s) {
+    const int callee_bp = s->bp;
     const Value a0 = s->stack[callee_bp + 1];
 
-    if (a0.tag != vtag_real) {
-        s->stack[callee_bp] = make_value_real(NAN);
-    } else {
-        s->stack[callee_bp] = make_value_real(sqrtf(a0.data.f));
-    }
+    s->sp++;
 
-    s->sp = callee_bp;
+    if (a0.tag != vtag_real) {
+        s->stack[s->sp] = make_value_real(NAN);
+    } else {
+        s->stack[s->sp] = make_value_real(sqrtf(a0.data.f));
+    }
 
     return vm_status_pending;
 }
@@ -92,55 +93,55 @@ static inline float clamp_f32(float v, float low, float high) {
     }
 }
 
-static inline VMStatus native_clampf(VMState *s, int argc) {
-    const int callee_bp = s->sp - argc;
+static inline VMStatus native_clampf(VMState *s) {
+    const int callee_bp = s->bp;
     const Value a0 = s->stack[callee_bp + 1];
     const Value a1 = s->stack[callee_bp + 2];
     const Value a2 = s->stack[callee_bp + 3];
 
+    s->sp++;
+
     if (a0.tag != vtag_real || a1.tag != vtag_real || a2.tag != vtag_real) {
-        s->stack[callee_bp] = make_value_real(NAN);
+        s->stack[s->sp] = make_value_real(NAN);
     } else {
-        s->stack[callee_bp] = make_value_real(clamp_f32(a0.data.f, a1.data.f, a2.data.f));
+        s->stack[s->sp] = make_value_real(clamp_f32(a0.data.f, a1.data.f, a2.data.f));
     }
-
-    s->sp = callee_bp;
 
     return vm_status_pending;
 }
 
-static inline VMStatus native_floorf(VMState *s, int argc) {
-    const int callee_bp = s->sp - argc;
+static inline VMStatus native_floorf(VMState *s) {
+    const int callee_bp = s->bp;
     const Value a0 = s->stack[callee_bp + 1];
 
-    if (a0.tag != vtag_real) {
-        s->stack[callee_bp] = make_value_real(NAN);
-    } else {
-        s->stack[callee_bp] = make_value_real(floorf(a0.data.f));
-    }
+    s->sp++;
 
-    s->sp = callee_bp;
+    if (a0.tag != vtag_real) {
+        s->stack[s->sp] = make_value_real(NAN);
+    } else {
+        s->stack[s->sp] = make_value_real(floorf(a0.data.f));
+    }
 
     return vm_status_pending;
 }
 
-static inline VMStatus native_ceilf(VMState *s, int argc) {
-    const int callee_bp = s->sp - argc;
+static inline VMStatus native_ceilf(VMState *s) {
+    const int callee_bp = s->bp;
     const Value a0 = s->stack[callee_bp + 1];
 
-    if (a0.tag != vtag_real) {
-        s->stack[callee_bp] = make_value_real(NAN);
-    } else {
-        s->stack[callee_bp] = make_value_real(ceilf(a0.data.f));
-    }
+    s->sp++;
 
-    s->sp = callee_bp;
+    if (a0.tag != vtag_real) {
+        s->stack[s->sp] = make_value_real(NAN);
+    } else {
+        s->stack[s->sp] = make_value_real(ceilf(a0.data.f));
+    }
 
     return vm_status_pending;
 }
 
-static inline VMStatus native_console_readln(VMState *s, int argc) {
-    const int callee_bp = s->sp - argc;
+static inline VMStatus native_console_readln(VMState *s) {
+    const int callee_bp = s->bp;
 
     if (feof(stdin)) {
         clearerr(stdin);
@@ -170,25 +171,25 @@ static inline VMStatus native_console_readln(VMState *s, int argc) {
         return 0;
     }
 
-    s->stack[callee_bp] = make_value_obj(vm_put_heap_string(s, &input_str));
-    s->sp = callee_bp;
+    s->sp++;
+    s->stack[s->sp] = make_value_obj(vm_put_heap_string(s, &input_str));
 
     return 1;
 }
 
-static inline VMStatus native_console_reset(VMState *s, int argc) {
-    const int callee_bp = s->sp - argc;
+static inline VMStatus native_console_reset(VMState *s) {
+    const int callee_bp = s->bp;
 
     clearerr(stdin);
 
-    s->stack[callee_bp] = make_value_none();
-    s->sp = callee_bp;
+    s->sp++;
+    s->stack[s->sp] = make_value_none();
 
     return 1;
 }
 
-static inline VMStatus native_stoi(VMState *s, int argc) {
-    const int callee_bp = s->sp - argc;
+static inline VMStatus native_stoi(VMState *s) {
+    const int callee_bp = s->bp;
 
     const Value arg = s->stack[callee_bp + 1];
     const char *str_chars = NULL;
@@ -210,19 +211,19 @@ static inline VMStatus native_stoi(VMState *s, int argc) {
         .length = str_length
     };
 
-    if (charspan_empty(&sv)) {
-        s->stack[callee_bp] = make_value_int(0);
-    } else {
-        s->stack[callee_bp] = make_value_int(charspan_atoi(&sv));
-    }
+    s->sp++;
 
-    s->sp = callee_bp;
+    if (charspan_empty(&sv)) {
+        s->stack[s->sp] = make_value_int(0);
+    } else {
+        s->stack[s->sp] = make_value_int(charspan_atoi(&sv));
+    }
 
     return 1;
 }
 
-static inline VMStatus native_stof(VMState *s, int argc) {
-    const int callee_bp = s->sp - argc;
+static inline VMStatus native_stof(VMState *s) {
+    const int callee_bp = s->bp;
 
     const Value arg = s->stack[callee_bp + 1];
     const char *str_chars = NULL;
@@ -244,13 +245,13 @@ static inline VMStatus native_stof(VMState *s, int argc) {
         .length = str_length
     };
 
-    if (charspan_empty(&sv)) {
-        s->stack[callee_bp] = make_value_real(0.0f);
-    } else {
-        s->stack[callee_bp] = make_value_real(charspan_checked_atof(&sv));
-    }
+    s->sp++;
 
-    s->sp = callee_bp;
+    if (charspan_empty(&sv)) {
+        s->stack[s->sp] = make_value_real(0.0f);
+    } else {
+        s->stack[s->sp] = make_value_real(charspan_checked_atof(&sv));
+    }
 
     return 1;
 }

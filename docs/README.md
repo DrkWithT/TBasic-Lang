@@ -71,19 +71,29 @@ A very trivial scripting language implemented in C11. Only for educational purpo
  - Add bytecode optimization pass with super-instructions. **OK**
 
 #### v0.10.x: BIG Refactor
- - Refactor compiler to use cleaner tracking of flag changes, passing bitflags per callee.
- - Refactor VM to trampoline into native calls vs. doing a branch each time.
- - Fix exceptions to not naively unwind out of the nearest `RET`. What if a `RET` is in a `TRY` and makes that exception falsely uncaught?
+ - Refactor compiler to use cleaner tracking of flag changes, passing bitflags per callee. **OK**
+ - Refactor VM to trampoline into native calls vs. doing a branch each time. **OK**
+ - Fix exceptions to not naively unwind out of the nearest `RET`. What if a `RET` is in a `TRY` and makes that exception falsely uncaught? **OK**
 
 #### v0.11.x: QoL 4
- - Add destructuring of lists into a finite set of names & a ranged view.
- - Add viewing ranges and list comprehensions
-    - `*[list : 1 : 4]`, viewing 4 elements starting at position 1
-    - `$[[1, 2, 3, 4, 5] | twice]`, generating 5 multiples of 2 
+ - Add `ASSERT <expr>, <simple-expr, call or literal>;`
  - Add lambdas:
   ```
     LET foo = FUN (a, b):
       RET a + b;
     END
   ```
- - Add first-class async functions OR ye-old callback async APIs.
+ - Add destructuring of lists into a finite set of names & a ranged view.
+  ```
+    BIND a, b, ...rest = nums;
+  ```
+
+#### v0.12.x: QoL 5
+ - Add variadic functions:
+  ```
+    FUN sum(...rest):
+      BIND a, more ::= rest;
+
+      RET a + sum(more);
+    END
+  ```
