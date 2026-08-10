@@ -23,7 +23,7 @@ typedef enum vm_status_t : uint8_t {
 typedef struct vm_state_t VMState;
 
 // ? Provides a type alias for native built-in functions:
-typedef VMStatus(*NativeFn)(VMState *s, int argc);
+typedef VMStatus(*NativeFn)(VMState *s);
 
 // ? This opcode handler type MUST do at least 2 things: update IP & tail-call into the dispatch function.
 typedef VMStatus(*OpFunc)(VMState *, const Instruction *, const Value *, Value *);
@@ -57,8 +57,10 @@ VMStatus fn_jmp(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_jmp_false(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_jmp_if(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_call(VMState *, const Instruction *, const Value *, Value *);
+VMStatus fn_native_call(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_put_callee(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_ret(VMState *, const Instruction *, const Value *, Value *);
+VMStatus fn_try(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_raise_err(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_catch_err(VMState *, const Instruction *, const Value *, Value *);
 VMStatus vm_dispatch(VMState *s, const Instruction *ip, const Value *cvp, Value *stack);
@@ -93,6 +95,7 @@ typedef struct vm_state_t {
     int16_t error_oid; // ? heap-id of exception: 0+ if present, -1 otherwise
     uint8_t depth;
     VMStatus status;
+    uint8_t trying_except;
 } VMState;
 
 VMState make_vm(const Program *program, const NativeFn *native_table_ptr, int locals_max, uint8_t depth_max, int16_t heap_pop_max);
@@ -107,7 +110,7 @@ Value vm_result(const VMState *s);
 
 int8_t vm_raise_error_with_data(VMState *s, uint16_t line, const Value* data);
 
-const Instruction *vm_locally_propagate_error(const Instruction *old_ip);
+const Instruction *vm_locally_propagate_error(VMState *s, const Instruction *old_ip);
 
 VMStatus vm_run(VMState *s);
 
