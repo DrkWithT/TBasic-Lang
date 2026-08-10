@@ -36,8 +36,10 @@ static OpFunc opcode_handlers[] = {
     fn_jmp_false,
     fn_jmp_if,
     fn_call,
+    fn_native_call,
     fn_put_callee,
     fn_ret,
+    fn_try,
     fn_raise_err,
     fn_catch_err,
     fn_mul_kl,
@@ -643,14 +645,7 @@ VMStatus fn_call(VMState *s, const Instruction *ip, const Value *cvp, Value *sta
     const int16_t arg_count = ip->wide;
     const Value *callee_ref = stack + s->sp - arg_count;
 
-    if (ip->flag && callee_ref->tag == vtag_int) {
-        // ? Case 1: handle native calls...
-        s->status = s->native_table[callee_ref->data.i](s, ip->wide);
-        ip++;
-
-        TAILCALL
-        return dispatcher(s, ip, cvp, stack);
-    } else if (callee_ref->tag != vtag_int) {
+    if (callee_ref->tag != vtag_int) {
         return vm_status_err_bad_call;
     }
 
@@ -671,12 +666,20 @@ VMStatus fn_call(VMState *s, const Instruction *ip, const Value *cvp, Value *sta
     stack[callee_bp] = stack[s->sp];
     s->sp = callee_bp;
     s->bp = caller_bp;
-    ip = caller_ret_ip;
-    cvp = caller_cvp;
 
     if (s->depth == 0) {
         return s->status;
     }
+
+    TAILCALL
+    return dispatcher(s, caller_ret_ip, caller_cvp, stack);
+}
+
+VMStatus fn_native_call(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    const int16_t native_id = ip->wide;
+
+    s->status = s->native_table[native_id](s);
+    ip++;
 
     TAILCALL
     return dispatcher(s, ip, cvp, stack);
@@ -711,6 +714,14 @@ VMStatus fn_ret(VMState *s, const Instruction *ip, const Value *cvp, Value *stac
     return s->status;
 }
 
+VMStatus fn_try(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    s->trying_except = 1;
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
 VMStatus fn_raise_err(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
     const Value *err_data = stack + s->sp;
     const int err_line = ip->wide;
@@ -721,7 +732,7 @@ VMStatus fn_raise_err(VMState *s, const Instruction *ip, const Value *cvp, Value
 
     s->sp--; // ? pop temporary for error data
 
-    ip = vm_locally_propagate_error(ip);
+    ip = vm_locally_propagate_error(s, ip);
     dispatcher = vm_dispatch; // ? run the reached catch or ret opcode
 
     TAILCALL
@@ -730,6 +741,7 @@ VMStatus fn_raise_err(VMState *s, const Instruction *ip, const Value *cvp, Value
 
 VMStatus fn_catch_err(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
     s->status = vm_status_pending;
+    s->trying_except = 0;
     dispatcher = vm_dispatch;
 
     ip++;
@@ -1080,7 +1092,7 @@ VMStatus vm_dispatch(VMState *s, const Instruction *ip, const Value *cvp, Value 
 }
 
 VMStatus vm_seek_catch(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
-    ip = vm_locally_propagate_error(ip);
+    ip = vm_locally_propagate_error(s, ip);
     dispatcher = vm_dispatch; // ? handle catch or return opcode that's been reached
 
     TAILCALL
@@ -1109,7 +1121,8 @@ VMState make_vm(const Program *program, const NativeFn *native_table_ptr, int lo
         .bp = 0,
         .error_oid = DUD_HEAP_ID,
         .depth = 1,
-        .status = (stack_buffer != NULL) ? vm_status_pending : vm_status_err_abort
+        .status = (stack_buffer != NULL) ? vm_status_pending : vm_status_err_abort,
+        .trying_except = 0
     };
 }
 
@@ -1154,27 +1167,34 @@ int8_t vm_raise_error_with_data(VMState *s, uint16_t line, const Value* data) {
     return 1;
 }
 
-const Instruction *vm_locally_propagate_error(const Instruction *old_ip) {
-    while (1) {
+const Instruction *vm_locally_propagate_error(VMState *s, const Instruction *old_ip) {
+    size_t exception_depth = (s->trying_except) ? 1 : 0 ;
+
+    for (; 1; old_ip++) {
         const Opcode seek_op = old_ip->op;
 
-        switch (seek_op) {
-            case op_catch_err:
-            case op_ret:
-                // ! A 'break' is not powerful enough to escape the clutches of our VM exception mode... Here, a goto is necessary to terminate seeking a catch or return.
-                goto seek_bailout;
-            default:
-                old_ip++;
+        if (seek_op == op_try) {
+            exception_depth++;
+        } else if (seek_op == op_catch_err) {
+            exception_depth--;
+
+            if (exception_depth <= 0) {
                 break;
+            }
+        } else if (seek_op == op_ret && old_ip->flag == TBASIC_RET_MARK_LAST) {
+            break;
         }
     }
 
-seek_bailout:
     return old_ip;
 }
 
 VMStatus vm_run(VMState *s) {
-    return vm_dispatch(s, s->prgm->chunks.data->code.data, s->prgm->chunks.data->constants.data, s->stack);
+    const Chunk *main_chunk_p = s->prgm->chunks.data + s->prgm->entry_id;
+    const Instruction *initial_ip = main_chunk_p->code.data;
+    const Value *initial_cvp = main_chunk_p->constants.data;
+
+    return vm_dispatch(s, initial_ip, initial_cvp, s->stack);
 }
 
 int16_t vm_put_heap_string(VMState *s, mystr *string) {

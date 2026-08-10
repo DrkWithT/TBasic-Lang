@@ -25,7 +25,6 @@ SymbolTable make_symbol_table() {
             .var_alloc_ip = 0,
             .local_argc = 0,
             .next_local_id = 0,     // ? Start from BP since BP holds the callee... OLD + 1 --> new ID.
-            .next_global_id = 1     // ? Start from 1 since chunks 1+ are for other procedures. 0 is the implicit main one.
         };
     }
 
@@ -35,8 +34,7 @@ SymbolTable make_symbol_table() {
         .capacity = 0,
         .var_alloc_ip = 0,
         .local_argc = 0,
-        .next_local_id = 0,
-        .next_global_id = 1
+        .next_local_id = 0
     };
 }
 

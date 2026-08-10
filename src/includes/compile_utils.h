@@ -14,7 +14,6 @@ typedef enum symbol_domain_t : uint8_t {
     symbol_constant,
     symbol_local,
     symbol_func,
-    symbol_native,
     symbol_string,
 } Domain;
 

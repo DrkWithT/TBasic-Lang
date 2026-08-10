@@ -6,13 +6,11 @@
 
 #define DEMO_NATIVE_N 1
 
-static VMStatus native_hello(VMState *s, int argc) {
-    const int callee_bp = s->sp - argc; // track where to 'return' on the VM stack... this is where the callee's ID usually is (int)
-    
+static VMStatus native_hello(VMState *s, MAYBE_UNUSED int argc) {
     puts("Hello World!\n");
 
-    s->stack[callee_bp] = make_value_none(); // return NIL
-    s->sp = callee_bp;
+    s->sp++;
+    s->stack[s->sp] = make_value_none(); // return NIL
 
     return vm_status_pending;
 }
