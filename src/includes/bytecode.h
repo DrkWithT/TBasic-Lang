@@ -8,6 +8,10 @@
 
 
 
+#define TBASIC_PG_MARK_MODULE -1
+#define TBASIC_PG_MARK_INVALID -2
+#define TBASIC_RET_MARK_LAST 15
+
 typedef struct code_vec_t Instruction;
 
 void Instruction_dud(Instruction* ins);
@@ -63,8 +67,10 @@ typedef enum vm_opcode_t : uint8_t {
     op_jmp_false,
     op_jmp_if,
     op_call,
+    op_native_call,
     op_put_callee,
     op_ret,
+    op_try,
     op_raise_err,
     op_catch_err,
 #pragma region SUPER_OPCODES
@@ -102,6 +108,7 @@ typedef struct vm_program_t {
 
 void program_dud(Program *self);
 void program_del(Program *self);
+Program program_take(Program *self);
 void dump_program(const Program *pg);
 
 #endif

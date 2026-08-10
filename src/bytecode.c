@@ -30,8 +30,10 @@ static const char *opcode_names[] = {
     "op_jmp_false",
     "op_jmp_if",
     "op_call",
+    "op_native_call",
     "op_put_callee",
     "op_ret",
+    "op_try",
     "op_raise_err",
     "op_catch_err",
 #pragma region SUPER_OPCODE_NAMES
@@ -137,5 +139,15 @@ void program_dud(Program *self) {
 void program_del(Program *self) {
     AnyVec_Chunk_del(&self->chunks);
     AnyVec_mystr_del(&self->strings);
+    self->entry_id = TBASIC_PG_MARK_INVALID;
+}
+
+Program program_take(Program *self) {
+    Program temp = *self;
+
+    self->chunks.data = NULL;
+    self->strings.data = NULL;
     self->entry_id = -1;
+
+    return temp;
 }
