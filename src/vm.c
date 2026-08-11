@@ -1,4 +1,5 @@
 #include <math.h>
+#include <stdio.h>
 #include "vm.h"
 #include "obj_list.h"
 #include "obj_str.h"
@@ -42,6 +43,7 @@ static OpFunc opcode_handlers[] = {
     fn_try,
     fn_raise_err,
     fn_catch_err,
+    fn_abort_if,
     fn_mul_kl,
     fn_div_kl,
     fn_add_kl,
@@ -750,6 +752,30 @@ VMStatus fn_catch_err(VMState *s, const Instruction *ip, const Value *cvp, Value
     return dispatcher(s, ip, cvp, stack);
 }
 
+VMStatus fn_abort_if(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    s->sp--;
+
+    const Value *tested_v = stack + s->sp;
+    const Value *displaying_v = tested_v + 1;
+    const uint16_t aborting_line = ip->wide;
+
+    if (tested_v->tag == vtag_bool && tested_v->data.byte != 0) {
+        ip++;
+        s->sp--;
+    } else if (tested_v->tag == vtag_int && tested_v->data.i != 0) {
+        ip++;
+        s->sp--;
+    } else if (tested_v->tag == vtag_real && tested_v->data.f != 0.0f && !isnan(tested_v->data.f)) {
+        ip++;
+        s->sp--;
+    } else {
+        return vm_abort_with_data(s, aborting_line, displaying_v);
+    }
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
 VMStatus fn_mul_kl(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
     const Value lhs = stack[s->bp + ip->wide];
     const Value rhs = cvp[ip->flag];
@@ -1165,6 +1191,14 @@ int8_t vm_raise_error_with_data(VMState *s, uint16_t line, const Value* data) {
     s->status = vm_status_err_throw;
 
     return 1;
+}
+
+VMStatus vm_abort_with_data(VMState *s, uint16_t line, const Value* data) {
+    fprintf(stderr, "\x1b[1;31mABORTED\x1b[0m ~ line %d:\n\n", line);
+    print_value(data, s);
+    printf("\n");
+
+    return s->status = vm_status_err_abort;
 }
 
 const Instruction *vm_locally_propagate_error(VMState *s, const Instruction *old_ip) {
