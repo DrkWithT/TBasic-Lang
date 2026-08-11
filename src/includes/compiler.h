@@ -79,6 +79,7 @@ uint8_t compiler_do_expr_stmt(Compiler *self, Lexer *lexer, const charspan *s, C
 uint8_t compiler_do_func(Compiler *self, Lexer *lexer, const charspan *s, CompHints hints);
 uint8_t compiler_do_nestable_stmt(Compiler *self, Lexer *lexer, const charspan *s, CompHints hints);
 uint8_t compiler_do_block(Compiler *self, Lexer *lexer, const charspan *s, CompHints hints);
+uint8_t compiler_do_assert(Compiler *self, Lexer *lexer, const charspan *s, CompHints hints);
 uint8_t compiler_do_stmt(Compiler *self, Lexer *lexer, const charspan *s, CompHints hints);
 
 Program compiler_do_source(Compiler *self, Lexer *lexer, const charspan *s);

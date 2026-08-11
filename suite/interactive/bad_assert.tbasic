@@ -1,0 +1,5 @@
+`test failing assert stmt`
+
+ASSERT 0 == 1, "This error is expected.";
+
+RET TRUE;

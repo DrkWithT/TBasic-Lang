@@ -76,7 +76,7 @@ A very trivial scripting language implemented in C11. Only for educational purpo
  - Fix exceptions to not naively unwind out of the nearest `RET`. What if a `RET` is in a `TRY` and makes that exception falsely uncaught? **OK**
 
 #### v0.11.x: QoL 4
- - Add `ASSERT <expr>, <simple-expr, call or literal>;`
+ - Add `ASSERT <expr>, <simple-expr, call or literal>;` **OK**
  - Add lambdas:
   ```
     LET foo = FUN (a, b):
@@ -85,14 +85,14 @@ A very trivial scripting language implemented in C11. Only for educational purpo
   ```
  - Add destructuring of lists into a finite set of names & a ranged view.
   ```
-    BIND a, b, ...rest = nums;
+    BIND a, b, rest : nums;
   ```
 
 #### v0.12.x: QoL 5
  - Add variadic functions:
   ```
     FUN sum(...rest):
-      BIND a, more ::= rest;
+      BIND a, more : rest;
 
       RET a + sum(more);
     END

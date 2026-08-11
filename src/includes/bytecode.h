@@ -73,6 +73,7 @@ typedef enum vm_opcode_t : uint8_t {
     op_try,
     op_raise_err,
     op_catch_err,
+    op_abort_else,        // ? implements `ASSERT` behavior
 #pragma region SUPER_OPCODES
     op_mul_kl,
     op_div_kl,

@@ -1,0 +1,5 @@
+`test assertion stmt`
+
+ASSERT TRUE, "This shouldn't print.";
+
+RET TRUE;

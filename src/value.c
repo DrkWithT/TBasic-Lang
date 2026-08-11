@@ -48,7 +48,7 @@ void print_value(const Value *v, const void *vm_state) {
         case vtag_real: printf("%f", v->data.f); break;
         case vtag_strid: print_string_k(vm->prgm->strings.data + v->data.i); break;
         case vtag_obj_id: print_object(heap_get(&vm->heap, v->data.obj_id), vm); break;
-        default: puts("(unknown)"); break;
+        default: printf("(unknown)"); break;
     }
 }
 

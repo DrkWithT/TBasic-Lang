@@ -63,6 +63,7 @@ VMStatus fn_ret(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_try(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_raise_err(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_catch_err(VMState *, const Instruction *, const Value *, Value *);
+VMStatus fn_abort_if(VMState *, const Instruction *, const Value *, Value *);
 VMStatus vm_dispatch(VMState *s, const Instruction *ip, const Value *cvp, Value *stack);
 VMStatus vm_seek_catch(VMState *s, const Instruction *ip, const Value *cvp, Value *stack);
 
@@ -109,6 +110,7 @@ VMStatus vm_status(const VMState *s);
 Value vm_result(const VMState *s);
 
 int8_t vm_raise_error_with_data(VMState *s, uint16_t line, const Value* data);
+VMStatus vm_abort_with_data(VMState *s, uint16_t line, const Value* data);
 
 const Instruction *vm_locally_propagate_error(VMState *s, const Instruction *old_ip);
 

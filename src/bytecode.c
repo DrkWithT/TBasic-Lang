@@ -36,6 +36,7 @@ static const char *opcode_names[] = {
     "op_try",
     "op_raise_err",
     "op_catch_err",
+    "op_abort_if",
 #pragma region SUPER_OPCODE_NAMES
     "op_mul_kl",
     "op_div_kl",
