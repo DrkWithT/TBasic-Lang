@@ -23,6 +23,7 @@ static const LexItem special_lexicals_v[] = {
     (LexItem) {.literal = "ERR", tk_keyword_err},
     (LexItem) {.literal = "FUN", .tag = tk_keyword_fun},
     (LexItem) {.literal = "END", .tag = tk_keyword_end},
+    (LexItem) {.literal = "ASSERT", .tag = tk_keyword_assert},
     (LexItem) {.literal = "?", .tag = tk_os_nullish},
     (LexItem) {.literal = "??", .tag = tk_os_nullcol},
     (LexItem) {.literal = "*", .tag = tk_os_times},
@@ -195,10 +196,10 @@ int driver_run(Driver *d, const char *file_path) {
         puts("Result:");
         const Value ans = vm_result(&d->vm);
         print_value(&ans, &d->vm);
-    } else {
+    } else if (status == vm_status_err_throw) {
         puts("\x1b[1;31mUNCAUGHT TBasic ERROR:\x1b[0m");
         print_object(heap_get(&d->vm.heap, d->vm.error_oid), &d->vm);
-    }
+    } else {}
 
     const long end_usec = end.tv_sec * 1000000 + end.tv_usec;
     const long begin_usec = begin.tv_sec * 1000000 + begin.tv_usec;

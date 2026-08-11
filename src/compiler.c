@@ -1390,6 +1390,43 @@ uint8_t compiler_do_func(Compiler *self, Lexer *lexer, const charspan *s, CompHi
     return hints;
 }
 
+uint8_t compiler_do_assert(Compiler *self, Lexer *lexer, const charspan *s, CompHints hints) {
+    const uint16_t asserting_line = self->curr.line;
+    compiler_eat_tk(self, lexer, s); // ? 
+
+    const CompHints test_expr_hints = compiler_do_or(self, lexer, s, hints);
+    if (!compile_hints_check_flag(test_expr_hints, cgen_visit_ok)) {
+        fprintf(stderr, "\tNote: see tested expression in ASSERT around line %d.\n", self->prev.line);
+        return test_expr_hints;
+    }
+
+    if (!compiler_match_curr(self, tk_comma)) {
+        compiler_warn(self, "Expected a ',' after asserted expression here.", &self->curr, s);
+        return cgen_parse_err;
+    }
+    compiler_eat_tk(self, lexer, s);
+
+    if (!compiler_match_curr(self, tk_string)) {
+        compiler_warn(self, "Expected a message string for an assertion here.", &self->curr, s);
+        return cgen_parse_err;
+    }
+
+    const CompHints msg_str_hints = compiler_do_literal(self, lexer, s, hints);
+    if (!compile_hints_check_flag(msg_str_hints, cgen_visit_ok)) {
+        return msg_str_hints;
+    }
+
+    if (!compiler_match_curr(self, tk_semicolon)) {
+        compiler_warn(self, "Expected a ';' ending the ASSERT here.", &self->curr, s);
+        return cgen_parse_err;
+    }
+    compiler_eat_tk(self, lexer, s);
+
+    compiler_emit_op_unflagged(self, op_abort_else, asserting_line);
+
+    return hints;
+}
+
 uint8_t compiler_do_stmt(Compiler *self, Lexer *lexer, const charspan *s, CompHints hints) {
     switch (self->curr.tag) {
     case tk_keyword_let:
@@ -1408,6 +1445,8 @@ uint8_t compiler_do_stmt(Compiler *self, Lexer *lexer, const charspan *s, CompHi
         return compiler_do_try_catch(self, lexer, s, hints);
     case tk_keyword_fun:
         return compiler_do_func(self, lexer, s, hints);
+    case tk_keyword_assert:
+        return compiler_do_assert(self, lexer, s, hints);
     default:
         return compiler_do_expr_stmt(self, lexer, s, hints);
     }
