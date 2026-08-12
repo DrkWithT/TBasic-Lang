@@ -1,0 +1,9 @@
+`test IIFE lambdas`
+
+LET ans : (FUN(x, y):
+    RET x + y;
+END)(11, 31);
+
+ASSERT ans == 42, "Expected IILE to return 42.";
+
+RET TRUE;
