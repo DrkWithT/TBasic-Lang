@@ -20,4 +20,6 @@ FUN collatz(n):
     RET hops;
 END
 
-RET collatz(27);
+ASSERT collatz(27) == 111, "Expected Collatz hops of 27 as 111.";
+
+RET TRUE;

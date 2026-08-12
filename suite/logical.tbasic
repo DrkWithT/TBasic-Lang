@@ -10,4 +10,6 @@ LET testAnd : a != b && a != c;
 `must be true`
 LET testOr : a < b || a > c;
 
-RET testAnd && testOr;
+ASSERT testAnd && testOr, "Expected TRUE for testAnd AND testOr";
+
+RET TRUE;

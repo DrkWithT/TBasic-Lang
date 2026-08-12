@@ -1,13 +1,8 @@
 `test nullish op`
 
-LET ok : 0, x : NIL, a : [1];
+LET x : NIL, a : [1];
 
-IF ?x:
-    ok := ok + 1;
-END
+ASSERT ?x, "Expected ?x as TRUE";
+ASSERT ?(a[1]), "Expected ?a[1] as TRUE";
 
-IF ?a[1]:
-    ok := ok + 1;
-END
-
-RET ok == 2;
+RET TRUE;

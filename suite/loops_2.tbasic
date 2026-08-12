@@ -30,4 +30,7 @@ FUN testB(y):
     RET j + old;
 END
 
-RET testA(10) == 5 && testB(10) == 5;
+ASSERT testA(10) == 5, "Expected testA(10) as 5";
+ASSERT testB(10) == 5, "Expected testB(10) as 5";
+
+RET TRUE;

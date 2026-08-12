@@ -69,6 +69,7 @@ uint8_t compiler_do_and(Compiler *self, Lexer *lexer, const charspan *s, CompHin
 uint8_t compiler_do_or(Compiler *self, Lexer *lexer, const charspan *s, CompHints hints);
 
 uint8_t compiler_do_vars(Compiler *self, Lexer *lexer, const charspan *s, CompHints hints);
+uint8_t compiler_do_binding(Compiler *self, Lexer *lexer, const charspan *s, CompHints hints);
 uint8_t compiler_do_ifs(Compiler *self, Lexer *lexer, const charspan *s, CompHints hints);
 uint8_t compiler_do_while(Compiler *self, Lexer *lexer, const charspan *s, CompHints hints);
 uint8_t compiler_do_for(Compiler *self, Lexer *lexer, const charspan *s, CompHints hints);

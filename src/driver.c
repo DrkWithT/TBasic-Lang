@@ -10,6 +10,7 @@ static const LexItem special_lexicals_v[] = {
     (LexItem) {.literal = "TRUE", .tag = tk_true},
     (LexItem) {.literal = "FALSE", .tag = tk_false},
     (LexItem) {.literal = "LET", .tag = tk_keyword_let},
+    (LexItem) {.literal = "BIND", .tag = tk_keyword_bind},
     (LexItem) {.literal = "IF", .tag = tk_keyword_if},
     (LexItem) {.literal = "ELSE", .tag = tk_keyword_else},
     (LexItem) {.literal = "WHILE", .tag = tk_keyword_while},
@@ -189,8 +190,10 @@ int driver_run(Driver *d, const char *file_path) {
     struct timeval begin, end;
 
     gettimeofday(&begin, NULL);
-    const VMStatus status = vm_run(&d->vm);
+    vm_run(&d->vm);
     gettimeofday(&end, NULL);
+
+    const VMStatus status = vm_status(&d->vm);
 
     if (status == vm_status_ok) {
         puts("Result:");

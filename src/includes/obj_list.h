@@ -19,4 +19,7 @@ Value list_get_v_fn(const void *self, Value key);
 int8_t list_set_v_fn(void *self, Value key, Value item);
 void list_display_fn(const void *self, const void *vm);
 
+// ! EXTRA method for querying object length / size. See README.
+size_t list_len(const void *self);
+
 #endif

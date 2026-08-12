@@ -13,4 +13,6 @@ FUN fibIt(n):
     RET a;
 END
 
-RET fibIt(30) == 832040;
+ASSERT fibIt(30) == 832040, "Expected fibIt(30) as 832040";
+
+RET TRUE;

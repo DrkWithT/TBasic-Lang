@@ -12,7 +12,6 @@ FUN(callback, a):
 END;
 
 ASSERT foo(1, 1) == 2, "Named lambda failed!";
-
 ASSERT fooBack(FUN(x): RET x * 2; END, 33) == 67, "Lambda with callback failed!";
 
 RET TRUE;

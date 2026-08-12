@@ -1,0 +1,14 @@
+`test list bindings`
+
+BIND [1, 2, 3] : [a, b, c];
+
+LET foo : FUN(blah):
+    BIND blah : [first, second];
+
+    RET first + second;
+END;
+
+ASSERT a + b + c == 6, "Expected sum of bound names as 6.";
+ASSERT foo([11, 31]) == 42, "Expected sum of bound names as 42.";
+
+RET TRUE;

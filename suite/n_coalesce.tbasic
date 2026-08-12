@@ -9,4 +9,7 @@ LET tBAB : b ?? (a ?? b);
 print(tBAB);
 
 `both should be 1`
-RET tAB == 1 && tBAB == 1;
+ASSERT tAB == 1, "Expected tAB as 1";
+ASSERT tBAB == 1, "Expected tBAB as 1";
+
+RET TRUE;

@@ -45,6 +45,7 @@ typedef enum vm_opcode_t : uint8_t {
     op_load_imm_gid,    // ? loads an immediate procedure ID --> chunk ID to dispatch to.
     op_load_local,
     op_store_local,
+    op_bind_lstmp,      // ? Args: <local-ID>, takes a referenced list and index int, binding that indexed temporary to a local by ID.
     op_put_k,
     op_dup,
     op_pop,

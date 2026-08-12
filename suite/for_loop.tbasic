@@ -10,5 +10,6 @@ FUN sumN(n):
     RET total;
 END
 
-`should give 55`
-RET sumN(10);
+ASSERT sumN(10) == 55, "Expected sum of 1-10 as 55";
+
+RET TRUE;

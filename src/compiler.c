@@ -896,6 +896,66 @@ uint8_t compiler_do_vars(Compiler *self, Lexer *lexer, const charspan *s, CompHi
     return hints;
 }
 
+uint8_t compiler_do_binding(Compiler *self, Lexer *lexer, const charspan *s, CompHints hints) {
+    compiler_eat_tk(self, lexer, s); // ? skip 'BIND'
+
+    const CompHints lhs_list_hints = compiler_do_literal(self, lexer, s, hints);
+    if (!compile_hints_check_flag(lhs_list_hints, cgen_visit_ok)) {
+        fprintf(stderr, "\tNote: see BIND statement's LHS around line %d here.", self->prev.line);
+        return lhs_list_hints;
+    }
+
+    if (!compiler_match_curr(self, tk_colon)) {
+        compiler_warn(self, "Expected ':' after BIND statement LHS here.", &self->curr, s);
+        return cgen_parse_err;
+    }
+    compiler_eat_tk(self, lexer, s);
+
+    if (!compiler_match_curr(self, tk_lbrack)) {
+        compiler_warn(self, "Expected opening '[' of BIND statement RHS here.", &self->curr, s);
+        return cgen_parse_err;
+    }
+    compiler_eat_tk(self, lexer, s);
+
+    uint8_t list_src_pos = 0;
+
+    while (!compiler_match_curr(self, tk_eof)) {
+        if (compiler_match_curr(self, tk_rbrack)) {
+            break;
+        } else if (!compiler_match_curr(self, tk_identifier)) {
+            compiler_warn(self, "Expected name in BIND RHS here.", &self->curr, s);
+            fprintf(stderr, "\tNote: see line %d.", self->curr.line);
+            return cgen_parse_err;
+        }
+
+        const charspan bound_name = {
+            .data = s->data + self->curr.begin,
+            .length = self->curr.length
+        };
+        const SymbolInfo *local_info = compiler_record_local(self, &bound_name);
+
+        compiler_eat_tk(self, lexer, s); // ? Here, consume a name after tracking its identifier...
+
+        if (compiler_match_curr(self, tk_comma)) {
+            compiler_eat_tk(self, lexer, s);
+        }
+
+        compiler_emit_op_flagged(self, op_bind_lstmp, list_src_pos, local_info->id);
+        list_src_pos++;
+    }
+    compiler_eat_tk(self, lexer, s);
+
+    if (!compiler_match_curr(self, tk_semicolon)) {
+        compiler_warn(self, "Expected closing ';' of BIND statement here.", &self->curr, s);
+        return cgen_parse_err;
+    }
+    compiler_eat_tk(self, lexer, s);
+
+    compiler_emit_op_flagged(self, op_pop, 1, 0); // ? Pop off the temporary list reference.
+
+    return hints;
+}
+
 uint8_t compiler_do_ifs(Compiler *self, Lexer *lexer, const charspan *s, CompHints hints) {
     compiler_eat_tk(self, lexer, s); // ? skip IF
 
@@ -1286,6 +1346,8 @@ uint8_t compiler_do_nestable_stmt(Compiler *self, Lexer *lexer, const charspan *
     switch (self->curr.tag) {
     case tk_keyword_let:
         return compiler_do_vars(self, lexer, s, hints);
+    case tk_keyword_bind:
+        return compiler_do_binding(self, lexer, s, hints);
     case tk_keyword_if:
         return compiler_do_ifs(self, lexer, s, hints);
     case tk_keyword_while:
@@ -1304,6 +1366,8 @@ uint8_t compiler_do_nestable_stmt(Compiler *self, Lexer *lexer, const charspan *
         return compiler_do_try_catch(self, lexer, s, hints);
     case tk_colon:
         return compiler_do_block(self, lexer, s, hints);
+    case tk_keyword_assert:
+        return compiler_do_assert(self, lexer, s, hints);
     default:
         return compiler_do_expr_stmt(self, lexer, s, hints);
     }
@@ -1360,7 +1424,7 @@ uint8_t compiler_do_func(Compiler *self, Lexer *lexer, const charspan *s, CompHi
     AnyVec_Chunk_push(&self->pg.chunks, &temp_chunk);
 
     // ? Put index to this procedure's code chunk and reset it to main chunk ID again once we return to top-level code... This works since there's only 1 global scope & 1 nested, local scope per procedure.
-    const int16_t old_chunk_idx = self->main_chunk_idx; // ! FIXME: this might be set to 1 incorrectly: exceptions.tbasic should generate op_load_imm_gid 0, 11 in chunk 10 (main) !
+    const int16_t old_chunk_idx = self->main_chunk_idx;
     self->chunk_idx = self->pg.chunks.length - 1;
     compiler_record_function(self, &name_lexeme, self->chunk_idx);
 
@@ -1406,7 +1470,7 @@ uint8_t compiler_do_func(Compiler *self, Lexer *lexer, const charspan *s, CompHi
         fprintf(stderr, "\tNote: See in FUN declaration around line %d.\n", self->curr.line);
         return cgen_dead;
     } else {
-        compiler_emit_op_flagged(self, op_ret, TBASIC_RET_MARK_LAST, 0); // ! NOTE: place function bytecode terminator for exceptions to heed, avoiding an OOB access.
+        compiler_emit_op_flagged(self, op_ret, TBASIC_RET_MARK_LAST, 0); // ! IMPORTANT: place function bytecode terminator for exceptions to heed, avoiding an OOB access.
         compiler_patch_reserve_inst(self, func_scope);
 
         compiler_end_local_scope(self);
@@ -1505,13 +1569,13 @@ uint8_t compiler_do_lambda(Compiler *self, Lexer *lexer, const charspan *s, Comp
         fprintf(stderr, "\tNote: See lambda body around line %d.\n", self->curr.line);
         return cgen_dead;
     } else {
-        // ! NOTE: Like `compiler_do_func`, place function bytecode terminator for exceptions to heed, avoiding an OOB access.
+        // ! IMPORTANT: Like `compiler_do_func`, place function bytecode terminator for exceptions to heed, avoiding an OOB access.
         compiler_emit_op_flagged(self, op_ret, TBASIC_RET_MARK_LAST, 0);
         compiler_patch_reserve_inst(self, lambda_scope);
 
         compiler_end_local_scope(self);
 
-        // ! Emit lambda as a temporary chunk reference on the stack.
+        // ? Emit lambda as a temporary chunk reference on the stack.
         self->chunk_idx = old_chunk_idx;
         compiler_emit_op_unflagged(self, op_load_imm_gid, lambda_chunk_idx);
     }
@@ -1523,6 +1587,8 @@ uint8_t compiler_do_stmt(Compiler *self, Lexer *lexer, const charspan *s, CompHi
     switch (self->curr.tag) {
     case tk_keyword_let:
         return compiler_do_vars(self, lexer, s, hints);
+    case tk_keyword_bind:
+        return compiler_do_binding(self, lexer, s, hints);
     case tk_keyword_if:
         return compiler_do_ifs(self, lexer, s, hints);
     case tk_keyword_while:
@@ -1582,7 +1648,7 @@ Program compiler_do_source(Compiler *self, Lexer *lexer, const charspan *s) {
         }
     }
 
-    // ! NOTE: emit a redundant RET in case the user forgets one- otherwise the VM reads an invalid IP!
+    // ! IMPORTANT: emit a redundant RET in case the user forgets one- otherwise the VM reads an invalid IP!
     compiler_emit_op_flagged(self, op_ret, TBASIC_RET_MARK_LAST, 0);
     compiler_patch_reserve_inst(self, main_scope);
     compiler_end_local_scope(self);
@@ -1592,6 +1658,6 @@ Program compiler_do_source(Compiler *self, Lexer *lexer, const charspan *s) {
         program_del(&self->pg);
     }
 
-    // ! Eject program from compiler to move ownership of data, preventing double frees.
+    // ! IMPORTANT: Eject program from compiler to move ownership of data, preventing double frees.
     return program_take(&self->pg);
 }
