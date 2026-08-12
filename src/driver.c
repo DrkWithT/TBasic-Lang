@@ -10,6 +10,7 @@ static const LexItem special_lexicals_v[] = {
     (LexItem) {.literal = "TRUE", .tag = tk_true},
     (LexItem) {.literal = "FALSE", .tag = tk_false},
     (LexItem) {.literal = "LET", .tag = tk_keyword_let},
+    (LexItem) {.literal = "BIND", .tag = tk_keyword_bind},
     (LexItem) {.literal = "IF", .tag = tk_keyword_if},
     (LexItem) {.literal = "ELSE", .tag = tk_keyword_else},
     (LexItem) {.literal = "WHILE", .tag = tk_keyword_while},

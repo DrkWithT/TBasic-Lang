@@ -8,6 +8,7 @@ typedef enum token_tag_t {
     tk_spaces,
     tk_comment,
     tk_keyword_let,
+    tk_keyword_bind,
     tk_keyword_if,
     tk_keyword_else,
     tk_keyword_while,
