@@ -15,6 +15,7 @@ static OpFunc opcode_handlers[] = {
     fn_load_imm_gid,
     fn_load_local,
     fn_store_local,
+    fn_bind_lstmp,
     fn_put_k,
     fn_dup,
     fn_pop,
@@ -130,6 +131,30 @@ VMStatus fn_load_local(VMState *s, const Instruction *ip, const Value *cvp, Valu
 VMStatus fn_store_local(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
     stack[s->bp + ip->wide] = stack[s->sp];
     s->sp--;
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_bind_lstmp(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    const Value *obj_ref = stack + s->sp;
+    if (obj_ref->tag != vtag_obj_id) {
+        fprintf(stderr, "\x1b[1;31mABORTED\x1b[0m: Cannot form binding to non-object's items.\n\n");
+        return vm_status_err_abort;
+    }
+    
+    ObjPtr obj = heap_get(&s->heap, obj_ref->data.obj_id);
+    if (obj == NULL) {
+        fprintf(stderr, "\x1b[1;31mABORTED\x1b[0m: Cannot form binding to non-existent object's items.\n\n");
+        return vm_status_err_abort;
+    } else if (obj->meta.tag != otag_list) {
+        fprintf(stderr, "\x1b[1;31mABORTED\x1b[0m: Cannot form binding to a non-list's items.\n\n");
+        return vm_status_err_abort;
+    }
+
+    stack[s->bp + ip->wide] = obj->get_v(obj, make_value_int(ip->flag));
+
     ip++;
 
     TAILCALL
