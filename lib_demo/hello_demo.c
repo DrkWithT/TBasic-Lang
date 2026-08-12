@@ -6,7 +6,7 @@
 
 #define DEMO_NATIVE_N 1
 
-static VMStatus native_hello(VMState *s, MAYBE_UNUSED int argc) {
+static VMStatus native_hello(VMState *s) {
     puts("Hello World!\n");
 
     s->sp++;
