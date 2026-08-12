@@ -3,6 +3,6 @@
 LET x : NIL, a : [1];
 
 ASSERT ?x, "Expected ?x as TRUE";
-ASSERT ?a[1] == FALSE, "Expected ?a[1] as FALSE";
+ASSERT ?(a[1]), "Expected ?a[1] as TRUE";
 
 RET TRUE;

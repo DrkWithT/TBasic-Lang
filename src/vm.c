@@ -1223,7 +1223,9 @@ VMStatus vm_abort_with_data(VMState *s, uint16_t line, const Value* data) {
     print_value(data, s);
     printf("\n");
 
-    return s->status = vm_status_err_abort;
+    s->status = vm_status_err_abort;
+
+    return s->status;
 }
 
 const Instruction *vm_locally_propagate_error(VMState *s, const Instruction *old_ip) {

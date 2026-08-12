@@ -190,8 +190,10 @@ int driver_run(Driver *d, const char *file_path) {
     struct timeval begin, end;
 
     gettimeofday(&begin, NULL);
-    const VMStatus status = vm_run(&d->vm);
+    vm_run(&d->vm);
     gettimeofday(&end, NULL);
+
+    const VMStatus status = vm_status(&d->vm);
 
     if (status == vm_status_ok) {
         puts("Result:");

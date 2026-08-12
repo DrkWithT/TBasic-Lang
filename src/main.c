@@ -10,4 +10,6 @@ int main(int argc, const char *argv[]) {
     }
 
     const int exit_status = tbasic_run(argv, argc, NULL, NULL, 0);
+
+    return exit_status;
 }
