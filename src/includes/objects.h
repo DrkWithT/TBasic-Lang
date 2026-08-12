@@ -5,9 +5,6 @@
 
 
 
-// todo 1: include objects.h in list.h & implement simple lists.
-// todo 2: `bytecode.h` AFTER vec.h !
-
 #define DEFAULT_HEAP_CAPACITY ((int16_t) 256)
 #define DUD_HEAP_ID ((int16_t) -1)
 #define OBJECT_COST ((size_t) 64)

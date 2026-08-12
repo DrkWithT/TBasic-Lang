@@ -81,3 +81,9 @@ void list_display_fn(const void *self, const void *vm) {
 
     fprintf(stdout, "\n");
 }
+
+size_t list_len(const void *self) {
+    const List *list = (const List *)self;
+
+    return AnyVec_Value_len(&list->data);
+}
