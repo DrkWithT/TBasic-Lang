@@ -23,6 +23,8 @@ int8_t AnyVec##_##type##_empty(AnyVec##_##type *self);\
 size_t AnyVec##_##type##_len(const AnyVec##_##type *self);\
 const type *AnyVec##_##type##_get(const AnyVec##_##type *self, size_t pos);\
 type *AnyVec##_##type##_getm(AnyVec##_##type *self, size_t pos);\
+const type *AnyVec##_##type##_last(const AnyVec##_##type *self);\
+type *AnyVec##_##type##_lastm(AnyVec##_##type *self);\
 void AnyVec##_##type##_push(AnyVec##_##type *self, const type *value);\
 void AnyVec##_##type##_pop(AnyVec##_##type *self);\
 \
@@ -117,6 +119,20 @@ type *AnyVec##_##type##_getm(AnyVec##_##type *self, size_t pos) {\
     }\
     \
     return self->data + pos;\
+}\
+\
+const type *AnyVec##_##type##_last(const AnyVec##_##type *self) {\
+    if (self->data == NULL || self->length < 1) {\
+        return NULL;\
+    }\
+    return self->data + self->length - 1;\
+}\
+\
+type *AnyVec##_##type##_lastm(AnyVec##_##type *self) {\
+    if (self->data == NULL || self->length < 1) {\
+        return NULL;\
+    }\
+    return self->data + self->length - 1;\
 }\
 \
 void AnyVec##_##type##_push(AnyVec##_##type *self, const type *value) {\

@@ -1,0 +1,18 @@
+`test named lambdas`
+
+LET foo : FUN (a, b):
+    RET a + b;
+END;
+
+LET fooBack :
+FUN(callback, a):
+    LET hidden : 1;
+
+    RET callback(a) + hidden;
+END;
+
+ASSERT foo(1, 1) == 2, "Named lambda failed!";
+
+ASSERT fooBack(FUN(x): RET x * 2; END, 33) == 67, "Lambda with callback failed!";
+
+RET TRUE;

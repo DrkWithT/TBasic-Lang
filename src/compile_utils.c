@@ -38,34 +38,56 @@ SymbolTable make_symbol_table() {
     };
 }
 
-void symbol_table_del(SymbolTable *self) {
+void SymbolTable_dud(SymbolTable *self) {
+    SymbolInfo *temp_infos = calloc(DEFAULT_SYMBOL_COUNT, sizeof(SymbolInfo));
+
+    if (temp_infos != NULL) {   
+        self->infos = temp_infos;
+        self->length = 0;
+        self->capacity = DEFAULT_SYMBOL_COUNT;
+
+        for (int i = 0; i < self->capacity; i++) {
+            self->infos[i] = (SymbolInfo) {
+                .name = {
+                    .data = NULL,
+                    .length = 0
+                },
+                .id = 0,
+                .domain = symbol_constant
+            };
+        }
+    } else {
+        self->infos = NULL;
+        self->length = 0;
+        self->capacity = 0;
+    }
+
+    self->var_alloc_ip = 0;
+    self->local_argc = 0;
+    self->next_local_id = 0;
+}
+
+void SymbolTable_del(SymbolTable *self) {
     if (self->infos != NULL) {
         free(self->infos);
         self->infos = NULL;
     }
 }
 
-void symbol_table_clear(SymbolTable *self) {
-    const int entry_n = self->length;
-
-    for (int i = 0; i < entry_n; i++) {
-        self->infos[i] = (SymbolInfo) {
-            .name = {
-                .data = NULL,
-                .length = 0
-            },
-            .id = 0,
-            .domain = symbol_constant
-        };
+void SymbolTable_copy(SymbolTable *dest, const SymbolTable *src) {
+    if (dest == src) {
+        return;
     }
 
-    self->length = 0;
-    self->var_alloc_ip = 0;
-    self->local_argc = 0,
-    self->next_local_id = 0;
+    dest->infos = src->infos;
+    dest->length = src->length;
+    dest->capacity = src->capacity;
+    dest->var_alloc_ip = src->var_alloc_ip;
+    dest->local_argc = src->local_argc;
+    dest->next_local_id = src->next_local_id;
 }
 
-const SymbolInfo *symbol_table_find(const SymbolTable *symbols, const charspan *s, Domain d) {
+const SymbolInfo *SymbolTable_find(const SymbolTable *symbols, const charspan *s, Domain d) {
     const SymbolInfo *infos_begin = symbols->infos;
     const int entry_n = symbols->length;
 
@@ -78,7 +100,7 @@ const SymbolInfo *symbol_table_find(const SymbolTable *symbols, const charspan *
     return NULL;
 }
 
-const SymbolInfo *symbol_table_push(SymbolTable *symbols, const SymbolInfo *info) {
+const SymbolInfo *SymbolTable_push(SymbolTable *symbols, const SymbolInfo *info) {
     const int next_pos = symbols->length;
     const int old_capacity = symbols->capacity;
 
@@ -99,6 +121,8 @@ const SymbolInfo *symbol_table_push(SymbolTable *symbols, const SymbolInfo *info
 
     return symbols->infos + next_pos;
 }
+
+IMPL_VEC(SymbolTable)
 
 
 

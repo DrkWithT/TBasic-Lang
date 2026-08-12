@@ -36,10 +36,14 @@ typedef struct symbol_table_t {
 } SymbolTable;
 
 SymbolTable make_symbol_table();
-void symbol_table_del(SymbolTable *self);
-void symbol_table_clear(SymbolTable *self);
-const SymbolInfo *symbol_table_find(const SymbolTable *symbols, const charspan *s, Domain d);
-const SymbolInfo *symbol_table_push(SymbolTable *symbols, const SymbolInfo *info);
+void SymbolTable_dud(SymbolTable *self);
+void SymbolTable_del(SymbolTable *self);
+void SymbolTable_copy(SymbolTable *dest, const SymbolTable *src);
+const SymbolInfo *SymbolTable_find(const SymbolTable *symbols, const charspan *s, Domain d);
+const SymbolInfo *SymbolTable_push(SymbolTable *symbols, const SymbolInfo *info);
+
+STUB_VEC(SymbolTable)
+
 
 
 

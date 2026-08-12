@@ -77,7 +77,7 @@ A very trivial scripting language implemented in C11. Only for educational purpo
 
 #### v0.11.x: QoL 4
  - Add `ASSERT <expr>, <simple-expr, call or literal>;` **OK**
- - Add lambdas:
+ - Add lambdas: **OK**
   ```
     LET foo = FUN (a, b):
       RET a + b;
