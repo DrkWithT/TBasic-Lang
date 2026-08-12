@@ -6,4 +6,6 @@ tmp := x;
 x := y;
 y := tmp;
 
-RET x > y;
+ASSERT x > y, "Expected x > y from swap of x 10, y 20";
+
+RET TRUE:

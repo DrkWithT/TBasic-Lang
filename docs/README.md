@@ -79,21 +79,33 @@ A very trivial scripting language implemented in C11. Only for educational purpo
  - Add `ASSERT <expr>, <simple-expr, call or literal>;` **OK**
  - Add lambdas: **OK**
   ```
-    LET foo = FUN (a, b):
+    LET foo : FUN (a, b):
       RET a + b;
-    END
+    END;
   ```
  - Add destructuring of lists into a finite set of names & a ranged view.
   ```
-    BIND a, b, rest : nums;
+    BIND nums : [a, b, c];
   ```
 
 #### v0.12.x: QoL 5
- - Add variadic functions:
-  ```
-    FUN sum(...rest):
-      BIND a, more : rest;
-
-      RET a + sum(more);
-    END
-  ```
+ - Apply new convention for tbstd:
+    - `_` prefix for native builtins. Bind to alias variable.
+ - Expand builtin library:
+    - Add `typeof` function:
+      - `typeof(val)`
+    - Add list functions:
+      - `lsrev(list)`
+      - `lscat(dest, src)` using native `__lscat(dest, src)`.
+      - `lsclr(list)` using native `__lsclr(list)`.
+      - `lsmap(list, fn)`
+      - `lsflt(list, fn)`
+      - `apply(fn, argv)` using native `__apply(fn, argv)`.
+    - Add dict functions:
+      - `dckeys(dict)` using native `__iterof(dict)`.
+    - Add more file functions:
+      - `fopen(path, bitflags)`
+      - `fclose(fd)`
+      - `fpeek(fd)`
+      - `fread(fd, buf, n)`
+      - `fwrite(fd, buf, n)`

@@ -6,6 +6,6 @@ print(test["foo"]);
 
 test["foo"] := 69;
 
-print(test["foo"]);
+ASSERT test["foo"] == 69, "Expected test.foo as 69";
 
-RET 0;
+RET TRUE;

@@ -6,8 +6,8 @@ LET x : clampf(9.75, 10.0, 20.0);
 LET y : clampf(20.5, low, high);
 LET z : clampf(19.5, low, high);
 
-`low's value, high's value, 19.5`
-
-print(x, y, z);
+ASSERT x == 10.0, "Expected clampf 1 as 10.0";
+ASSERT y == 20.0, "Expected clampf 2 as 20.0";
+ASSERT z == 19.5, "Expected clampf 2 as 19.5";
 
 RET TRUE;

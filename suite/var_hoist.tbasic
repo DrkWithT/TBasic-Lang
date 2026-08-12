@@ -12,4 +12,6 @@ IF a == 1:
     END
 END
 
-RET chk;
+ASSERT chk, "Expected check as TRUE for hoisted vars.";
+
+RET TRUE;
