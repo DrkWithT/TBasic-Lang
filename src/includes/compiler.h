@@ -13,7 +13,7 @@
 typedef struct compiler_t {
     Program pg;
     SymbolTable globals;
-    SymbolTable locals;
+    AnyVec_SymbolTable locals;
     AnyVec_ActiveLoop loops;
     Token prev;
     Token curr;
@@ -41,6 +41,8 @@ size_t compiler_emit_op_unflagged(Compiler *self, Opcode op, int16_t wide);
 size_t compiler_emit_op_flagged(Compiler *self, Opcode op, uint8_t flags, int16_t wide);
 void compiler_patch_reserve_inst(Compiler *self, const SymbolTable *scope);
 
+SymbolTable *compiler_begin_local_scope(Compiler *self);
+void compiler_end_local_scope(Compiler *self);
 const SymbolInfo *compiler_resolve_name(const Compiler *self, const charspan *s);
 const SymbolInfo *compiler_record_function(Compiler *self, const charspan *s, int chunk_id);
 const SymbolInfo *compiler_record_local(Compiler *self, const charspan *s);
@@ -80,6 +82,7 @@ uint8_t compiler_do_func(Compiler *self, Lexer *lexer, const charspan *s, CompHi
 uint8_t compiler_do_nestable_stmt(Compiler *self, Lexer *lexer, const charspan *s, CompHints hints);
 uint8_t compiler_do_block(Compiler *self, Lexer *lexer, const charspan *s, CompHints hints);
 uint8_t compiler_do_assert(Compiler *self, Lexer *lexer, const charspan *s, CompHints hints);
+uint8_t compiler_do_lambda(Compiler *self, Lexer *lexer, const charspan *s, CompHints hints);
 uint8_t compiler_do_stmt(Compiler *self, Lexer *lexer, const charspan *s, CompHints hints);
 
 Program compiler_do_source(Compiler *self, Lexer *lexer, const charspan *s);

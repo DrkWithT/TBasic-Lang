@@ -6,6 +6,9 @@
 
 
 Compiler make_compiler() {
+    AnyVec_SymbolTable local_scopes;
+    AnyVec_SymbolTable_dud(&local_scopes);
+
     AnyVec_ActiveLoop temp_loops;
     AnyVec_ActiveLoop_dud(&temp_loops);
 
@@ -15,7 +18,7 @@ Compiler make_compiler() {
     return (Compiler) {
         .pg = temp_pg,
         .globals = make_symbol_table(),
-        .locals = make_symbol_table(),
+        .locals = local_scopes,
         .loops = temp_loops,
         .curr = (Token) {
             .begin = 0,
@@ -40,8 +43,8 @@ Compiler make_compiler() {
 
 void compiler_del(Compiler *self) {
     program_del(&self->pg);
-    symbol_table_del(&self->globals);
-    symbol_table_del(&self->locals);
+    SymbolTable_del(&self->globals);
+    AnyVec_SymbolTable_del(&self->locals);
     AnyVec_ActiveLoop_del(&self->loops);
 }
 
@@ -75,7 +78,7 @@ void compiler_map_native(Compiler *self, const charspan *s) {
         .domain = symbol_func
     };
 
-    symbol_table_push(&self->globals, &native_fn_info);
+    SymbolTable_push(&self->globals, &native_fn_info);
 }
 
 int8_t compiler_peek_past_spaces(const Compiler *self, Lexer *l, const charspan *source, char c) {
@@ -177,18 +180,31 @@ void compiler_patch_reserve_inst(Compiler *self, const SymbolTable *scope) {
     current_chunk->code.data[reserver_ip].wide = scope->next_local_id - locals_from_params;
 }
 
+SymbolTable *compiler_begin_local_scope(Compiler *self) {
+    SymbolTable temp_scope = make_symbol_table();
+
+    AnyVec_SymbolTable_push(&self->locals, &temp_scope);
+
+    return AnyVec_SymbolTable_lastm(&self->locals);
+}
+
+void compiler_end_local_scope(Compiler *self) {
+    AnyVec_SymbolTable_pop(&self->locals);
+}
+
 const SymbolInfo *compiler_resolve_name(const Compiler *self, const charspan *s) {
-    const SymbolInfo *temp = symbol_table_find(&self->globals, s, symbol_func);
+    const SymbolInfo *temp = SymbolTable_find(&self->globals, s, symbol_func);
 
     if (temp != NULL) {
         return temp;
     }
 
-    return symbol_table_find(&self->locals, s, symbol_local);
+    const SymbolTable *curr_scope = AnyVec_SymbolTable_last(&self->locals);
+    return SymbolTable_find(curr_scope, s, symbol_local);
 }
 
 const SymbolInfo *compiler_record_function(Compiler *self, const charspan *s, int chunk_id) {
-    const SymbolInfo *result = symbol_table_find(&self->globals, s, symbol_func);
+    const SymbolInfo *result = SymbolTable_find(&self->globals, s, symbol_func);
     if (result != NULL && result->domain == symbol_func) {
         return result;
     }
@@ -199,28 +215,31 @@ const SymbolInfo *compiler_record_function(Compiler *self, const charspan *s, in
         .domain = symbol_func
     };
 
-    return symbol_table_push(&self->globals, &new_info);
+    return SymbolTable_push(&self->globals, &new_info);
 }
 
 const SymbolInfo *compiler_record_local(Compiler *self, const charspan *s) {
-    const SymbolInfo *result = symbol_table_find(&self->locals, s, symbol_local);
+    SymbolTable *curr_scope = AnyVec_SymbolTable_lastm(&self->locals);
+
+    const SymbolInfo *result = SymbolTable_find(curr_scope, s, symbol_local);
     if (result != NULL && result->domain == symbol_local) {
         return result;
     }
 
-    self->locals.next_local_id++;
+    curr_scope->next_local_id++;
 
     SymbolInfo new_info = {
         .name = *s,
-        .id = self->locals.next_local_id,
+        .id = curr_scope->next_local_id,
         .domain = symbol_local
     };
 
-    return symbol_table_push(&self->locals, &new_info);
+    return SymbolTable_push(curr_scope, &new_info);
 }
 
 const SymbolInfo *compiler_record_constant(Compiler *self, const charspan *s_symbol, Value v) {
-    const SymbolInfo *result = symbol_table_find(&self->locals, s_symbol, symbol_constant);
+    SymbolTable *curr_scope = AnyVec_SymbolTable_lastm(&self->locals);
+    const SymbolInfo *result = SymbolTable_find(curr_scope, s_symbol, symbol_constant);
     if (result != NULL && result->domain == symbol_constant) {
         return result;
     }
@@ -237,11 +256,11 @@ const SymbolInfo *compiler_record_constant(Compiler *self, const charspan *s_sym
         .domain = symbol_constant
     };
 
-    return symbol_table_push(&self->locals, &new_info);
+    return SymbolTable_push(curr_scope, &new_info);
 }
 
 const SymbolInfo *compiler_record_string(Compiler *self, const charspan *s) {
-    const SymbolInfo *pre_info = symbol_table_find(&self->globals, s, symbol_string);
+    const SymbolInfo *pre_info = SymbolTable_find(&self->globals, s, symbol_string);
 
     if (pre_info != NULL) {
         return pre_info;
@@ -263,7 +282,7 @@ const SymbolInfo *compiler_record_string(Compiler *self, const charspan *s) {
     self->next_str_id++;
     AnyVec_mystr_push(&self->pg.strings, &str);
 
-    return symbol_table_push(&self->globals, &new_info);
+    return SymbolTable_push(&self->globals, &new_info);
 }
 
 
@@ -462,6 +481,8 @@ uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, const charspan *s, Com
             return compiler_do_list(self, lexer, s, hints);
         case tk_lbrace:
             return compiler_do_dict(self, lexer, s, hints);
+        case tk_keyword_fun:
+            return compiler_do_lambda(self, lexer, s, hints);
         default:
             compiler_warn(self, "Unexpected token in literal, expected none, true, false, or a name.", curr_ref, s);
 
@@ -1344,9 +1365,13 @@ uint8_t compiler_do_func(Compiler *self, Lexer *lexer, const charspan *s, CompHi
     compiler_record_function(self, &name_lexeme, self->chunk_idx);
 
     if (!compiler_match_curr(self, tk_lparen)) {
-        return cgen_dead;
+        compiler_warn(self, "Expected '(' starting function params here.", &self->curr, s);
+        return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer, s);
+
+    // ? Start tracking localized names for this function, using a nested scope. This is handled by a stack of scopes.
+    SymbolTable *func_scope = compiler_begin_local_scope(self);
 
     while (!compiler_match_curr(self, tk_eof)) {
         if (compiler_match_curr(self, tk_rparen)) {
@@ -1364,7 +1389,7 @@ uint8_t compiler_do_func(Compiler *self, Lexer *lexer, const charspan *s, CompHi
         };
         
         compiler_record_local(self, &param_name);
-        self->locals.local_argc++;
+        func_scope->local_argc++;
 
         compiler_eat_tk(self, lexer, s);
 
@@ -1374,7 +1399,7 @@ uint8_t compiler_do_func(Compiler *self, Lexer *lexer, const charspan *s, CompHi
     }
     compiler_eat_tk(self, lexer, s);
 
-    self->locals.var_alloc_ip = 0;
+    func_scope->var_alloc_ip = 0;
     compiler_emit_op_unflagged(self, op_reserve, 0);
 
     if (!compiler_do_block(self, lexer, s, hints)) {
@@ -1382,8 +1407,9 @@ uint8_t compiler_do_func(Compiler *self, Lexer *lexer, const charspan *s, CompHi
         return cgen_dead;
     } else {
         compiler_emit_op_flagged(self, op_ret, TBASIC_RET_MARK_LAST, 0); // ! NOTE: place function bytecode terminator for exceptions to heed, avoiding an OOB access.
-        compiler_patch_reserve_inst(self, &self->locals);
-        symbol_table_clear(&self->locals);
+        compiler_patch_reserve_inst(self, func_scope);
+
+        compiler_end_local_scope(self);
         self->chunk_idx = old_chunk_idx;
     }
 
@@ -1427,6 +1453,72 @@ uint8_t compiler_do_assert(Compiler *self, Lexer *lexer, const charspan *s, Comp
     return hints;
 }
 
+uint8_t compiler_do_lambda(Compiler *self, Lexer *lexer, const charspan *s, CompHints hints) {
+    compiler_eat_tk(self, lexer, s); // ? skip 'FUN'
+
+    if (!compiler_match_curr(self, tk_lparen)) {
+        compiler_warn(self, "Expected a '(' starting lambda params here.", &self->curr, s);
+        return cgen_parse_err;
+    }
+    compiler_eat_tk(self, lexer, s);
+
+    const int16_t old_chunk_idx = self->chunk_idx; // ! FIXME: this might be set to 1 incorrectly: exceptions.tbasic should generate op_load_imm_gid 0, 11 in chunk 10 (main) !
+    Chunk temp_chunk;
+    Chunk_dud(&temp_chunk);
+    AnyVec_Chunk_push(&self->pg.chunks, &temp_chunk);
+
+    const int16_t lambda_chunk_idx = self->pg.chunks.length - 1;
+    self->chunk_idx = lambda_chunk_idx;
+
+    SymbolTable *lambda_scope = compiler_begin_local_scope(self);
+
+    while (!compiler_match_curr(self, tk_eof)) {
+        if (compiler_match_curr(self, tk_rparen)) {
+            break;
+        } else if (!compiler_match_curr(self, tk_identifier)) {
+            compiler_warn(self, "Expected name in lambda params list here.", &self->curr, s);
+            fprintf(stderr, "\tNote: see line %d.\n", self->curr.line);
+            return cgen_parse_err;
+        }
+
+        // ? Eat checked identifier token here, as it's simpler to process it as self->curr.
+        const charspan param_name = {
+            .data = s->data + self->curr.begin,
+            .length = self->curr.length
+        };
+
+        compiler_record_local(self, &param_name);
+        lambda_scope->local_argc++;
+
+        compiler_eat_tk(self, lexer, s);
+
+        if (compiler_match_curr(self, tk_comma)) {
+            compiler_eat_tk(self, lexer, s);
+        }
+    }
+    compiler_eat_tk(self, lexer, s);
+
+    lambda_scope->var_alloc_ip = 0;
+    compiler_emit_op_unflagged(self, op_reserve, 0);
+
+    if (!compiler_do_block(self, lexer, s, hints)) {
+        fprintf(stderr, "\tNote: See lambda body around line %d.\n", self->curr.line);
+        return cgen_dead;
+    } else {
+        // ! NOTE: Like `compiler_do_func`, place function bytecode terminator for exceptions to heed, avoiding an OOB access.
+        compiler_emit_op_flagged(self, op_ret, TBASIC_RET_MARK_LAST, 0);
+        compiler_patch_reserve_inst(self, lambda_scope);
+
+        compiler_end_local_scope(self);
+
+        // ! Emit lambda as a temporary chunk reference on the stack.
+        self->chunk_idx = old_chunk_idx;
+        compiler_emit_op_unflagged(self, op_load_imm_gid, lambda_chunk_idx);
+    }
+
+    return hints;
+}
+
 uint8_t compiler_do_stmt(Compiler *self, Lexer *lexer, const charspan *s, CompHints hints) {
     switch (self->curr.tag) {
     case tk_keyword_let:
@@ -1457,15 +1549,19 @@ Program compiler_do_source(Compiler *self, Lexer *lexer, const charspan *s) {
 
     CompHints initial_hints = cgen_visit_ok;
 
-    // ! IMPORTANT: push an empty bytecode chunk so that an OOB terminate doesn't happen via accessing an empty code buf for top-level code.
+    // ! IMPORTANT: push an empty bytecode chunk for top-level code to avoid OOB crashes on the chunk buffer.
     self->pg.entry_id = AnyVec_Chunk_len(&self->pg.chunks);
     self->main_chunk_idx = self->pg.entry_id;
     self->chunk_idx = self->pg.entry_id;
+
     Chunk temp;
     Chunk_new(&temp); // ? initialize empty chunk
     AnyVec_Chunk_push(&self->pg.chunks, &temp); // ? copy the empty chunk into this Vec, but don't touch temp again... just did scuffed destructive moves??
 
-    self->locals.var_alloc_ip = 0;
+    // ! IMPORTANT: push an initial top-level scope (not for superglobals) to avoid OOB scope stack accesses.
+    SymbolTable *main_scope = compiler_begin_local_scope(self);
+
+    main_scope->var_alloc_ip = 0;
     compiler_emit_op_unflagged(self, op_reserve, 0);
 
     while (!compiler_match_curr(self, tk_eof) && self->errors <= TBASIC_MAX_COMPILE_ERRORS) {
@@ -1488,7 +1584,8 @@ Program compiler_do_source(Compiler *self, Lexer *lexer, const charspan *s) {
 
     // ! NOTE: emit a redundant RET in case the user forgets one- otherwise the VM reads an invalid IP!
     compiler_emit_op_flagged(self, op_ret, TBASIC_RET_MARK_LAST, 0);
-    compiler_patch_reserve_inst(self, &self->locals);
+    compiler_patch_reserve_inst(self, main_scope);
+    compiler_end_local_scope(self);
 
     fprintf(stderr, "Compilation finished with \x1b[1;31m%d\x1b[0m errors.\n\n", self->errors);
     if (self->errors > 0) {
