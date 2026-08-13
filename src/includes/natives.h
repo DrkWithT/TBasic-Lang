@@ -150,25 +150,22 @@ static inline VMStatus native_console_readln(VMState *s) {
         return 0;
     }
 
-    size_t input_line = 0;
-    const char *line_begin = fgetln(stdin, &input_line);
-
-    if (line_begin == NULL) {
-        fprintf(stderr, "Failed to read line.\n");
-        return 0;
-    }
-
-    charspan raw_input_view = {
-        .data = line_begin,
-        .length = input_line - 1
-    };
-
     mystr input_str;
     mystr_new(&input_str, "");
-    
-    if (!mystr_append_charspan(&input_str, &raw_input_view, raw_input_view.length)) {
-        fprintf(stderr, "Failed to fill string with raw input.\n");
-        return 0;
+    char c = '\0';
+    size_t rc = 0;
+
+    while (1) {
+        rc = fread(&c, sizeof(char), 1, stdin);
+
+        if (c == '\n' || rc <= 0 || feof(stdin)) {
+            break;
+        } else if (ferror(stdin)) {
+            perror("Failed to read line.");
+            break;
+        } else {
+            mystr_append_raw(&input_str, &c, 1);
+        }
     }
 
     s->sp++;
