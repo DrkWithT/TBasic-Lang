@@ -90,7 +90,7 @@ A very trivial scripting language implemented in C11. Only for educational purpo
 
 #### v0.12.x: Diagnostic Improvements
  - Fix the atrocious compiler errors to be more specific with column numbers per line. **OK**
- - Add debug info per bytecode chunk e.g line & col per statement.
+ - Add debug info per bytecode chunk e.g line & col per statement. **OK**
 
 #### v0.13.x: QoL 5
  - Apply new convention for tbstd:
