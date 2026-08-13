@@ -6,13 +6,13 @@
 #include "obj_dict.h"
 #include "obj_exception.h"
 
-#ifdef __clang__
+#if defined(__clang__)
 
-    #define TAILCALL __attribute((musttail))\
+    #define TAILCALL __attribute((musttail))
 
 #elif defined(__GNUC__)
 
-    #define TAILCALL __attribute__((musttail))\
+    #define TAILCALL __attribute__((musttail))
 
 #else
     #error "TBasic requires TCO in its VM."

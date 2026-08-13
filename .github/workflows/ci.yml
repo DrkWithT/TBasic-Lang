@@ -12,6 +12,11 @@ jobs:
         steps:
             - name: Checkout Repository Code
               uses: actions/checkout@v4
+            - name: Set up GCC
+              uses: egor-tensin/setup-gcc@v2
+              with:
+                version: latest
+                platform: x64
             - name: Build TBasic
               run: chmod u+x ./project.sh && ./project.sh br
             - name: Run Suite
