@@ -128,17 +128,17 @@ Program driver_compile(Driver *d, const char *file_path) {
     }
 
     charspan source_view;
-    charspan_new(&source_view, file_source.data, file_source.length);
+    charspan_from_str(&source_view, &file_source);
+
+    compiler_bind_source(&d->compiler, &file_source);
 
     Lexer tokenizer = make_lexer(&source_view, special_lexicals_v);
 
-    Program program = compiler_do_source(&d->compiler, &tokenizer, &source_view);
+    Program program = compiler_do_source(&d->compiler, &tokenizer);
 
     // todo: support module case where entry_id == -1
     if (program.entry_id < 0) {
-        charspan_del(&source_view);
         program_del(&program);
-        mystr_del(&file_source);
 
         return (Program) {
             .chunks = {NULL, 0, 0},
@@ -150,9 +150,6 @@ Program driver_compile(Driver *d, const char *file_path) {
     for (size_t chunk_pos = 0; chunk_pos < program.chunks.length; chunk_pos++) {
         optimizer_apply(&d->optimizer, &program.chunks.data[chunk_pos].code);
     }
-
-    charspan_del(&source_view);
-    mystr_del(&file_source);
 
     return program;
 }
