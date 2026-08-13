@@ -62,6 +62,19 @@ static OpFunc opcode_handlers[] = {
 // ! Editable VM dispatch function pointer: If an exception is thrown, this may be set to `vm_seek_catch`!
 static OpFunc dispatcher = vm_dispatch;
 
+static void vm_report_chunk_info(VMState *s, uint16_t chunk_id) {
+    const Chunk *chunk = AnyVec_Chunk_get(&s->prgm->chunks, chunk_id);
+    const ChunkDbgInfo *info = &chunk->info;
+
+    fprintf(stderr, "\x1b[1;31mERR TRACE\x1b[0m ~ source \x1b[1;36mln\x1b[0m %d, \x1b[1;36mcol\x1b[0m %d: symbol ", info->line, info->col);
+
+    for (size_t csi = 0; csi < info->name.length; csi++) {
+        fprintf(stderr, "%c", (char)chunk->info.name.data[csi]);
+    }
+
+    fprintf(stderr, "\n");
+}
+
 VMStatus fn_nop(VMState *s, const Instruction *ip, const Value* cvp, Value *stack) {
     ip++;
 
@@ -90,20 +103,8 @@ VMStatus fn_put_bool(VMState *s, const Instruction *ip, const Value *cvp, Value 
 VMStatus fn_reserve(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
     const uint16_t res_count = ip->wide;
 
-    if (res_count == 0) {
-        ip++;
-
-        TAILCALL
-        return vm_dispatch(s, ip, cvp, stack);
-    }
-    
-    const int old_sp = s->sp;
-
-    for (uint16_t nil_pushes = res_count; nil_pushes > 0; nil_pushes--) {
-        stack[old_sp + nil_pushes].tag = vtag_nil; // ? NOTE: Do a lazy reset of previously used / allocated stack slot for perf.
-    }
-
     s->sp += res_count;
+
     ip++;
 
     TAILCALL
@@ -683,8 +684,10 @@ VMStatus fn_call(VMState *s, const Instruction *ip, const Value *cvp, Value *sta
     const Value *caller_cvp = cvp;
     const int caller_bp = s->bp;
     const int callee_bp = s->sp - arg_count;
+    const uint16_t caller_cid = s->chunk_id;
 
     s->bp = callee_bp;
+    s->chunk_id = callee_ref->data.i;
 
     // ? For speed and simplicity, use the native stack to track VM call recursions...
     s->depth++;
@@ -693,6 +696,7 @@ VMStatus fn_call(VMState *s, const Instruction *ip, const Value *cvp, Value *sta
     stack[callee_bp] = stack[s->sp];
     s->sp = callee_bp;
     s->bp = caller_bp;
+    s->chunk_id = caller_cid;
 
     if (s->depth == 0) {
         return s->status;
@@ -733,6 +737,8 @@ VMStatus fn_ret(VMState *s, const Instruction *ip, const Value *cvp, Value *stac
         s->sp = 0;
         s->bp = 0;
     } else if (s->status == vm_status_err_throw) {
+        vm_report_chunk_info(s, s->chunk_id);
+
         s->sp++;
         stack[s->sp] = make_value_none(); // ? thrown functions will "fail" with NIL results
         dispatcher = vm_seek_catch; // ? resume seeking a catch in the caller, letting the native call stack unwind
@@ -1170,6 +1176,7 @@ VMState make_vm(const Program *program, const NativeFn *native_table_ptr, int lo
         .stack = stack_buffer,
         .sp = 0,
         .bp = 0,
+        .chunk_id = program->entry_id,
         .error_oid = DUD_HEAP_ID,
         .depth = 1,
         .status = (stack_buffer != NULL) ? vm_status_pending : vm_status_err_abort,

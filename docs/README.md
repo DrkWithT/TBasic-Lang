@@ -83,12 +83,16 @@ A very trivial scripting language implemented in C11. Only for educational purpo
       RET a + b;
     END;
   ```
- - Add destructuring of lists into a finite set of names & a ranged view.
+ - Add destructuring of lists into a finite set of names. **OK**
   ```
     BIND nums : [a, b, c];
   ```
 
-#### v0.12.x: QoL 5
+#### v0.12.x: Diagnostic Improvements
+ - Fix the atrocious compiler errors to be more specific with column numbers per line. **OK**
+ - Add debug info per bytecode chunk e.g line & col per statement. **OK**
+
+#### v0.13.x: QoL 5
  - Apply new convention for tbstd:
     - `_` prefix for native builtins. Bind to alias variable.
  - Expand builtin library:

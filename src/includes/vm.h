@@ -89,11 +89,10 @@ typedef struct vm_state_t {
     GCState gc;
     const NativeFn *native_table;
     const Program *prgm;
-    // const Instruction *ip;
-    // const Value *cvp;
     Value *stack;
     int sp;
     int bp;
+    uint16_t chunk_id;
     int16_t error_oid; // ? heap-id of exception: 0+ if present, -1 otherwise
     uint8_t depth;
     VMStatus status;

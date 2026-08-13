@@ -92,6 +92,7 @@ void AnyVec##_##type##_del(AnyVec##_##type *self) {\
             type##_del(temp + destroy_i);\
         }\
         free(self->data);\
+        self->data = NULL;\
         self->length = 0;\
         self->capacity = 0;\
     }\
