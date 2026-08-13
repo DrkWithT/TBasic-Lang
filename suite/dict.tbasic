@@ -2,8 +2,6 @@ LET test : {
     "foo" : 67;
 };
 
-print(test["foo"]);
-
 test["foo"] := 69;
 
 ASSERT test["foo"] == 69, "Expected test.foo as 69";
