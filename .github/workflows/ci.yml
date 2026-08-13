@@ -12,8 +12,8 @@ jobs:
         steps:
             - name: Checkout Repository Code
               uses: actions/checkout@v4
-            - name: Update GCC
-              run: sudo apt update && sudo apt install -y gcc-15
+            - name: Set CC
+              run: export CC=clang
             - name: Build TBasic
               run: chmod u+x ./project.sh && ./project.sh br
             - name: Run Suite
