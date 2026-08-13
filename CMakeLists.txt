@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.2)
+cmake_minimum_required(VERSION 3.30)
 
 project(toyscript VERSION 0.0.1 LANGUAGES C)
 
@@ -71,5 +71,5 @@ else ()
     target_sources(tbasic PRIVATE
         "${PROJECT_SOURCES}/main.c"
     )
-    target_link_libraries(tbasic PRIVATE tbasic_lang_impl)
+    target_link_libraries(tbasic PRIVATE tbasic_lang_impl m)
 endif ()

@@ -3,10 +3,8 @@
 LET a : NIL, b : 1;
 
 LET tAB : a ?? b;
-print(tAB);
 
 LET tBAB : b ?? (a ?? b);
-print(tBAB);
 
 `both should be 1`
 ASSERT tAB == 1, "Expected tAB as 1";

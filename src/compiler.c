@@ -1681,7 +1681,6 @@ Program compiler_do_source(Compiler *self, Lexer *lexer) {
 
     compiler_end_local_scope(self);
 
-    fprintf(stderr, "Compilation finished with \x1b[1;31m%d\x1b[0m errors.\n\n", self->errors);
     if (self->errors > 0) {
         program_del(&self->pg);
     }

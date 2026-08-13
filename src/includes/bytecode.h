@@ -75,7 +75,7 @@ typedef enum vm_opcode_t : uint8_t {
     op_raise_err,
     op_catch_err,
     op_abort_else,        // ? implements `ASSERT` behavior
-#pragma region SUPER_OPCODES
+
     op_mul_kl,
     op_div_kl,
     op_add_kl,
@@ -88,7 +88,6 @@ typedef enum vm_opcode_t : uint8_t {
     op_div_ll,
     op_add_ll,
     op_sub_ll,
-#pragma endregion SUPER_OPCODES
 } Opcode;
 
 typedef struct code_vec_t {

@@ -7,7 +7,6 @@
 #include "gc.h"
 
 
-#define TAILCALL __attribute((musttail))
 
 typedef enum vm_status_t : uint8_t {
     vm_status_ok,

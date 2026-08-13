@@ -1,0 +1,20 @@
+name: "Run TBasic Suite"
+on:
+    push:
+        branches:
+            - 'dev-*'
+    pull_request:
+        branches:
+            - 'dev-*'
+jobs:
+    Run-CI-TBasic-Suite:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Repository Code
+              uses: actions/checkout@v4
+            - name: Build TBasic
+              env:
+                CC: clang
+              run: chmod u+x ./project.sh && ./project.sh br
+            - name: Run Suite
+              run: python3 ./run_suite.py 2>&1 >/dev/null

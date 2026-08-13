@@ -6,6 +6,7 @@
 
 import os
 import subprocess
+from sys import stderr
 
 TEST_SUITE_DIR = os.path.relpath('./suite')
 TEST_PROCESS_COUNT = 2;
@@ -39,10 +40,10 @@ def run_tests_by_n(test_file_paths: list[str], worker_count: int = TEST_PROCESS_
 
         for batch_test_id, test_cmd in enumerate(batched_procs):
             if test_cmd.wait() == 0:
-                print(f'Test \x1b[1;33m{batch[batch_test_id][0]}\x1b[0m:  \x1b[1;32mPASS\x1b[0m')
+                print(f'Test \x1b[1;33m{batch[batch_test_id][0]}\x1b[0m:  \x1b[1;32mPASS\x1b[0m', file=stderr)
                 total_passed += 1
             else:
-                print(f'Test \x1b[1;33m{batch[batch_test_id][0]}\x1b[0m:  \x1b[1;31mFAIL\x1b[0m')
+                print(f'Test \x1b[1;33m{batch[batch_test_id][0]}\x1b[0m:  \x1b[1;31mFAIL\x1b[0m', file=stderr)
 
     return (total_passed, total_tests - total_passed, total_tests)   
 
@@ -55,6 +56,6 @@ if __name__ == '__main__':
         get_test_names()
     )
 
-    print(f'\nTEST REPORT:\n\x1b[1;34mPASSED:\x1b[0m {pass_count}/{test_count}\n\x1b[1;34mFAILED:\x1b[0m {fail_count}/{test_count}')
+    print(f'\nTEST REPORT:\n\x1b[1;32mPASSED:\x1b[0m {pass_count}/{test_count}\n\x1b[1;31mFAILED:\x1b[0m {fail_count}/{test_count}', file=stderr)
 
     exit(0 if fail_count == 0 else 1)
