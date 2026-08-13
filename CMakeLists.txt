@@ -71,5 +71,5 @@ else ()
     target_sources(tbasic PRIVATE
         "${PROJECT_SOURCES}/main.c"
     )
-    target_link_libraries(tbasic PRIVATE tbasic_lang_impl)
+    target_link_libraries(tbasic PRIVATE tbasic_lang_impl m)
 endif ()
