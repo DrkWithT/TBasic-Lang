@@ -6,7 +6,8 @@ Lexer make_lexer(const charspan *s, const LexItem *special_array) {
         .specials = special_array,
         .pos = 0,
         .end = charspan_len(s),
-        .line = 1
+        .line = 1,
+        .col = 1,
     };
 }
 
@@ -17,6 +18,9 @@ int8_t lexer_done(const Lexer *self) {
 void lexer_consume(Lexer *self, char c) {
     if (c == '\n') {
         self->line++;
+        self->col = 1;
+    } else {
+        self->col++;
     }
 
     self->pos++;
@@ -24,7 +28,8 @@ void lexer_consume(Lexer *self, char c) {
 
 Token lexer_lex_space(Lexer *self, const charspan *s) {
     const int tk_start = self->pos;
-    const int tk_line = self->line;
+    const int16_t tk_line = self->line;
+    const int16_t tk_col = self->col;
 
     while (!lexer_done(self)) {
         const char c = s->data[self->pos];
@@ -40,13 +45,15 @@ Token lexer_lex_space(Lexer *self, const charspan *s) {
         .begin = tk_start,
         .length = self->pos - tk_start,
         .line = tk_line,
+        .col = tk_col,
         .tag = tk_spaces
     };
 }
 
 Token lexer_lex_single(Lexer *self, TkTag tag, const charspan *s) {
     const int tk_start = self->pos;
-    const int tk_line = self->line;
+    const int16_t tk_line = self->line;
+    const int16_t tk_col = self->col;
 
     lexer_consume(self, s->data[tk_start]);
 
@@ -54,6 +61,7 @@ Token lexer_lex_single(Lexer *self, TkTag tag, const charspan *s) {
         .begin = tk_start,
         .length = 1,
         .line = tk_line,
+        .col = tk_col,
         .tag = tag
     };
 }
@@ -63,7 +71,8 @@ Token lexer_lex_between(Lexer *self, TkTag tag, const charspan *s) {
     lexer_consume(self, delim);
 
     const int tk_start = self->pos;
-    const int tk_line = self->line;
+    const int16_t tk_line = self->line;
+    const int16_t tk_col = self->col;
     int8_t closed = 0;
 
     while (!lexer_done(self)) {
@@ -83,13 +92,15 @@ Token lexer_lex_between(Lexer *self, TkTag tag, const charspan *s) {
         .begin = tk_start,
         .length = self->pos - tk_start - 1,
         .line = tk_line,
+        .col = tk_col,
         .tag = (closed) ? tag : tk_unknown
     };
 }
 
 Token lexer_lex_numeric(Lexer *self, const charspan *s) {
     const int tk_start = self->pos;
-    const int tk_line = self->line;
+    const int16_t tk_line = self->line;
+    const int16_t tk_col = self->col;
     int8_t points = 0;
 
     if (s->data[self->pos] == '-') {
@@ -126,13 +137,15 @@ Token lexer_lex_numeric(Lexer *self, const charspan *s) {
         .begin = tk_start,
         .length = self->pos - tk_start,
         .line = tk_line,
+        .col = tk_col,
         .tag = temp_tag
     };
 }
 
 Token lexer_lex_word(Lexer *self, const charspan *s) {
     const int tk_start = self->pos;
-    const int tk_line = self->line;
+    const int16_t tk_line = self->line;
+    const int16_t tk_col = self->col;
 
     while (!lexer_done(self)) {
         const char c = s->data[self->pos];
@@ -160,13 +173,15 @@ Token lexer_lex_word(Lexer *self, const charspan *s) {
         .begin = tk_start,
         .length = tk_length,
         .line = tk_line,
+        .col = tk_col,
         .tag = temp_tag
     };
 }
 
 Token lexer_lex_operator(Lexer *self, const charspan *s) {
     const int tk_start = self->pos;
-    const int tk_line = self->line;
+    const int16_t tk_line = self->line;
+    const int16_t tk_col = self->col;
 
     while (!lexer_done(self)) {
         const char c = s->data[self->pos];
@@ -194,6 +209,7 @@ Token lexer_lex_operator(Lexer *self, const charspan *s) {
         .begin = tk_start,
         .length = tk_length,
         .line = tk_line,
+        .col = tk_col,
         .tag = temp_tag
     };
 }
@@ -204,6 +220,7 @@ Token lexer_next(Lexer *self, const charspan *s) {
             .begin = self->end,
             .length = 1,
             .line = self->line,
+            .col = self->col,
             .tag = tk_eof
         };
     }

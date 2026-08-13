@@ -128,7 +128,7 @@ void compiler_eat_tk(Compiler *self, Lexer *lexer, const charspan *s) {
 
 void compiler_warn(Compiler *self, const char *msg, const Token *tk, const charspan *s) {
     self->errors++;
-    fprintf(stderr, "Compile Err #%d at line %d:\n\tNote: %s\n", self->errors, tk->line, msg);
+    fprintf(stderr, "\x1b[1;31mCompile Error\x1b[0m #%d at line \x1b[1;36m%d\x1b[0m, col \x1b[1;36m%d\x1b[0m:\n\tNote: %s\n", self->errors, tk->line, tk->col, msg);
 }
 
 size_t compiler_emit_op(Compiler *self, Opcode op) {
@@ -582,7 +582,7 @@ uint8_t compiler_do_call(Compiler *self, Lexer *lexer, const charspan *s, CompHi
 
     const CompHints lhs_hints = compiler_do_lhs(self, lexer, s, hints);
     if (!compile_hints_check_flag(lhs_hints, cgen_visit_ok)) {
-        fprintf(stderr, "\tNote See call at line %d.\n", self->curr.line);
+        fprintf(stderr, "\tNote: See LHS at line %d.\n", self->curr.line);
         return lhs_hints;
     }
 
@@ -598,7 +598,7 @@ uint8_t compiler_do_call(Compiler *self, Lexer *lexer, const charspan *s, CompHi
 
         const CompHints call_hints = compiler_do_compare(self, lexer, s, hints);
         if (!compile_hints_check_flag(call_hints, cgen_visit_ok)) {
-            fprintf(stderr, "\tNote See call at line %d.\n", callee_name.line);
+            fprintf(stderr, "\tNote: See comparison at line %d, argument #%d of call here.\n", callee_name.line, arg_count);
             return call_hints;
         }
 
@@ -992,7 +992,7 @@ uint8_t compiler_do_ifs(Compiler *self, Lexer *lexer, const charspan *s, CompHin
     const uint16_t begin_else_pos = jump_skip_else_pos + 1;
     const CompHints falsy_path_stmt_hints = compiler_do_nestable_stmt(self, lexer, s, hints);
     if (!compile_hints_check_flag(falsy_path_stmt_hints, cgen_visit_ok)) {
-        fprintf(stderr, "\tNote See else-clause in the falsy-body around line %d.\n", self->curr.line);
+        fprintf(stderr, "\tNote: See else-clause in the falsy-body around line %d.\n", self->curr.line);
         return falsy_path_stmt_hints;
     }
 
@@ -1013,7 +1013,7 @@ uint8_t compiler_do_while(Compiler *self, Lexer *lexer, const charspan *s, CompH
     const uint16_t while_check_pos = self->pg.chunks.data[self->chunk_idx].code.length;
     const CompHints loop_cond_hints = compiler_do_or(self, lexer, s, hints);
     if (!compile_hints_check_flag(loop_cond_hints, cgen_visit_ok)) {
-        fprintf(stderr, "\tNote See while-loop condition around line %d.\n", self->curr.line);
+        fprintf(stderr, "\tNote: See while-loop condition around line %d.\n", self->curr.line);
         compiler_leave_loop(self);
         return loop_cond_hints;
     }
@@ -1023,7 +1023,7 @@ uint8_t compiler_do_while(Compiler *self, Lexer *lexer, const charspan *s, CompH
 
     const CompHints loop_body_hints = compiler_do_block(self, lexer, s, hints);
     if (!compile_hints_check_flag(loop_body_hints, cgen_visit_ok)) {
-        fprintf(stderr, "\tNote See while-body around line %d.\n", self->curr.line);
+        fprintf(stderr, "\tNote: See while-body around line %d.\n", self->curr.line);
         compiler_leave_loop(self);
         return loop_body_hints;
     }
@@ -1064,7 +1064,7 @@ uint8_t compiler_do_for(Compiler *self, Lexer *lexer, const charspan *s, CompHin
 
     if (!compiler_match_curr(self, tk_identifier)) {
         compiler_warn(self, "Expected name for counter variable in C-style for loop here.", &self->curr, s);
-        fprintf(stderr, "\tNote See line %d.\n", self->curr.line);
+        fprintf(stderr, "\tNote: See line %d.\n", self->curr.line);
 
         compiler_leave_loop(self);
         return cgen_parse_err;
