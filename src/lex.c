@@ -28,8 +28,8 @@ void lexer_consume(Lexer *self, char c) {
 
 Token lexer_lex_space(Lexer *self, const charspan *s) {
     const int tk_start = self->pos;
-    const int16_t tk_line = self->line;
-    const int16_t tk_col = self->col;
+    const uint16_t tk_line = self->line;
+    const uint16_t tk_col = self->col;
 
     while (!lexer_done(self)) {
         const char c = s->data[self->pos];
@@ -52,8 +52,8 @@ Token lexer_lex_space(Lexer *self, const charspan *s) {
 
 Token lexer_lex_single(Lexer *self, TkTag tag, const charspan *s) {
     const int tk_start = self->pos;
-    const int16_t tk_line = self->line;
-    const int16_t tk_col = self->col;
+    const uint16_t tk_line = self->line;
+    const uint16_t tk_col = self->col;
 
     lexer_consume(self, s->data[tk_start]);
 
@@ -71,8 +71,8 @@ Token lexer_lex_between(Lexer *self, TkTag tag, const charspan *s) {
     lexer_consume(self, delim);
 
     const int tk_start = self->pos;
-    const int16_t tk_line = self->line;
-    const int16_t tk_col = self->col;
+    const uint16_t tk_line = self->line;
+    const uint16_t tk_col = self->col;
     int8_t closed = 0;
 
     while (!lexer_done(self)) {
@@ -99,8 +99,8 @@ Token lexer_lex_between(Lexer *self, TkTag tag, const charspan *s) {
 
 Token lexer_lex_numeric(Lexer *self, const charspan *s) {
     const int tk_start = self->pos;
-    const int16_t tk_line = self->line;
-    const int16_t tk_col = self->col;
+    const uint16_t tk_line = self->line;
+    const uint16_t tk_col = self->col;
     int8_t points = 0;
 
     if (s->data[self->pos] == '-') {
@@ -144,8 +144,8 @@ Token lexer_lex_numeric(Lexer *self, const charspan *s) {
 
 Token lexer_lex_word(Lexer *self, const charspan *s) {
     const int tk_start = self->pos;
-    const int16_t tk_line = self->line;
-    const int16_t tk_col = self->col;
+    const uint16_t tk_line = self->line;
+    const uint16_t tk_col = self->col;
 
     while (!lexer_done(self)) {
         const char c = s->data[self->pos];
@@ -180,8 +180,8 @@ Token lexer_lex_word(Lexer *self, const charspan *s) {
 
 Token lexer_lex_operator(Lexer *self, const charspan *s) {
     const int tk_start = self->pos;
-    const int16_t tk_line = self->line;
-    const int16_t tk_col = self->col;
+    const uint16_t tk_line = self->line;
+    const uint16_t tk_col = self->col;
 
     while (!lexer_done(self)) {
         const char c = s->data[self->pos];

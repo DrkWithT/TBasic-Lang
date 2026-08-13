@@ -62,8 +62,8 @@ typedef enum token_tag_t {
 typedef struct token_v_t {
     int begin;
     int length;
-    int16_t line;
-    int16_t col;
+    uint16_t line;
+    uint16_t col;
     TkTag tag;
 } Token;
 

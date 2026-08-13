@@ -97,14 +97,22 @@ typedef struct code_vec_t {
     uint16_t wide;
 } Instruction;
 
+typedef struct code_chunk_dbg_info_t {
+    charspan name;
+    uint16_t line;
+    uint16_t col;
+} ChunkDbgInfo;
+
 typedef struct code_chunk_t {
     AnyVec_Instruction code;
     AnyVec_Value constants;
+    ChunkDbgInfo info;
 } Chunk;
 
 typedef struct vm_program_t {
     AnyVec_Chunk chunks;
     AnyVec_mystr strings;
+    mystr source;
     int entry_id;
 } Program;
 

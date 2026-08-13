@@ -39,8 +39,8 @@ typedef struct lexer_t {
     const LexItem *specials;
     int pos;
     int end;
-    int16_t line;
-    int16_t col;
+    uint16_t line;
+    uint16_t col;
 } Lexer;
 
 Lexer make_lexer(const charspan *s, const LexItem *special_array);

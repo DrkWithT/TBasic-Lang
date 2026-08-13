@@ -67,21 +67,39 @@ IMPL_VEC(Instruction)
 void Chunk_dud(Chunk* c) {
     AnyVec_Instruction_dud(&c->code);
     AnyVec_Value_dud(&c->constants);
+    c->info = (ChunkDbgInfo) {
+        .name = (charspan) {
+            .data = "??",
+            .length = 2
+        },
+        .line = 0,
+        .col = 0
+    };
 }
 
 void Chunk_new(Chunk *c) {
     AnyVec_Instruction_dud(&c->code);
     AnyVec_Value_dud(&c->constants);
+    c->info = (ChunkDbgInfo) {
+        .name = (charspan) {
+            .data = "??",
+            .length = 2
+        },
+        .line = 0,
+        .col = 0
+    };
 }
 
 void Chunk_copy(Chunk *c, const Chunk *other) {
     AnyVec_Instruction_copy(&c->code, &other->code);
     AnyVec_Value_copy(&c->constants, &other->constants);
+    c->info = other->info;
 }
 
 void Chunk_move(Chunk *c, Chunk *other) {
     AnyVec_Instruction_move(&c->code, &other->code);
     AnyVec_Value_move(&c->constants, &other->constants);
+    c->info = other->info;
 }
 
 void Chunk_del(MAYBE_UNUSED Chunk *c) {
@@ -135,12 +153,14 @@ IMPL_VEC(mystr)
 void program_dud(Program *self) {
     AnyVec_Chunk_dud(&self->chunks);
     AnyVec_mystr_dud(&self->strings);
+    self->source = (mystr) {.data = NULL, .capacity = 0, .length = 0},
     self->entry_id = 0;
 }
 
 void program_del(Program *self) {
     AnyVec_Chunk_del(&self->chunks);
     AnyVec_mystr_del(&self->strings);
+    mystr_del(&self->source);
     self->entry_id = TBASIC_PG_MARK_INVALID;
 }
 
@@ -149,7 +169,8 @@ Program program_take(Program *self) {
 
     self->chunks.data = NULL;
     self->strings.data = NULL;
-    self->entry_id = -1;
+    self->source.data = NULL;
+    self->entry_id = TBASIC_PG_MARK_INVALID;
 
     return temp;
 }
