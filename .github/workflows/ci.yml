@@ -12,9 +12,9 @@ jobs:
         steps:
             - name: Checkout Repository Code
               uses: actions/checkout@v4
-            - name: Set CC
-              run: export CC=clang
             - name: Build TBasic
+              env:
+                CC: clang
               run: chmod u+x ./project.sh && ./project.sh br
             - name: Run Suite
               run: python3 ./run_suite.py 2>&1 >/dev/null
