@@ -40,6 +40,8 @@ static OpFunc opcode_handlers[] = {
     fn_mk_closure,
     fn_get_idx,
     fn_set_idx,
+    fn_get_upv,
+    fn_set_upv,
     fn_chk_none,
     fn_mul,
     fn_div,
@@ -384,6 +386,26 @@ VMStatus fn_set_idx(VMState *s, const Instruction *ip, const Value *cvp, Value *
     return dispatcher(s, ip, cvp, stack);
 }
 
+VMStatus fn_get_upv(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    s->sp++;
+    stack[s->sp] = s->upvals[ip->wide];
+
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_set_upv(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    s->upvals[ip->wide] = stack[s->sp];
+    s->sp--;
+
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
 VMStatus fn_chk_none(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
     const int sp = s->sp;
 
@@ -717,15 +739,15 @@ VMStatus fn_call(VMState *s, const Instruction *ip, const Value *cvp, Value *sta
     const int16_t arg_count = ip->wide;
     const Value *callee_ref = stack + s->sp - arg_count;
 
-    if (callee_ref->tag != vtag_int) {
-        return vm_status_err_bad_call;
-    } else if (callee_ref->tag == vtag_obj_id) {
+    if (callee_ref->tag == vtag_obj_id) {
         ObjMutPtr maybe_closure = heap_getm(&s->heap, callee_ref->data.obj_id);
 
         s->status = maybe_closure->invoke(maybe_closure, s, ip, cvp, stack, arg_count);
 
         TAILCALL
         return dispatcher(s, ip + 1, cvp, stack);
+    } else if (callee_ref->tag != vtag_int) {
+        return vm_status_err_bad_call;
     }
 
     // ? Case 2: handle bytecode calls...

@@ -45,6 +45,8 @@ VMStatus fn_mk_dict(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_mk_closure(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_get_idx(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_set_idx(VMState *, const Instruction *, const Value *, Value *);
+VMStatus fn_get_upv(VMState *, const Instruction *, const Value *, Value *);
+VMStatus fn_set_upv(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_chk_none(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_mul(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_div(VMState *, const Instruction *, const Value *, Value *);
