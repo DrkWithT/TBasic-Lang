@@ -15,6 +15,7 @@ typedef enum symbol_domain_t : uint8_t {
     symbol_local,
     symbol_func,
     symbol_string,
+    symbol_upval,
 } Domain;
 
 typedef struct symbol_info_t {
@@ -67,6 +68,7 @@ typedef enum bcgen_flag_t : uint8_t {
     cgen_access_of = 0b00000100,    // ? Is the compiler within a member access expression LHS?
     cgen_lhs_local = 0b00001000,    // ? Has the compiler just consumed only an assignment LHS name?
     cgen_lhs_native = 0b00010000,   // ? Has the compiler consumed a native function's name in the LHS?
+    cgen_lhs_upval = 0b00100000,    // ? Has the compiler just consumed an upval / captured name for an LHS?
     cgen_parse_err = 0b10000000
 } CompHints;
 

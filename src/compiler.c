@@ -20,6 +20,7 @@ Compiler make_compiler() {
         .globals = make_symbol_table(),
         .locals = local_scopes,
         .loops = temp_loops,
+        .saved_info = make_symbol_info((charspan) {.data = NULL, .length = 0}, 0, symbol_constant),
         .s = (charspan) {.data = NULL, .length = 0},
         .curr = (Token) {
             .begin = 0,
@@ -38,7 +39,6 @@ Compiler make_compiler() {
         .chunk_idx = 0,
         .next_native_id = 0,
         .next_str_id = 0,
-        .saved_id = 0
     };
 }
 
@@ -211,13 +211,18 @@ void compiler_end_local_scope(Compiler *self) {
 
 const SymbolInfo *compiler_resolve_name(const Compiler *self, const charspan *s) {
     const SymbolInfo *temp = SymbolTable_find(&self->globals, s, symbol_func);
-
     if (temp != NULL) {
         return temp;
     }
 
     const SymbolTable *curr_scope = AnyVec_SymbolTable_last(&self->locals);
-    return SymbolTable_find(curr_scope, s, symbol_local);
+
+    const SymbolInfo *maybe_local = SymbolTable_find(curr_scope, s, symbol_local);
+    if (maybe_local != NULL) {
+        return maybe_local;
+    }
+
+    return SymbolTable_find(curr_scope, s, symbol_upval);
 }
 
 const SymbolInfo *compiler_record_function(Compiler *self, const charspan *s, int chunk_id) {
@@ -300,6 +305,25 @@ const SymbolInfo *compiler_record_string(Compiler *self, const charspan *s) {
     AnyVec_mystr_push(&self->pg.strings, &str);
 
     return SymbolTable_push(&self->globals, &new_info);
+}
+
+uint8_t compiler_record_capture(Compiler *self, const charspan *symbol, int16_t curr_captures_n) {
+    SymbolTable *curr_scope = AnyVec_SymbolTable_lastm(&self->locals);
+    const SymbolInfo *maybe_duped_local = SymbolTable_find(curr_scope, symbol, symbol_local);
+
+    if (maybe_duped_local != NULL) {
+        return 0;
+    }
+
+    SymbolInfo temp_upval_info = {
+        .name = *symbol,
+        .id = curr_captures_n,
+        .domain = symbol_upval,
+    };
+
+    SymbolTable_push(curr_scope, &temp_upval_info);
+
+    return 1;
 }
 
 
@@ -519,29 +543,31 @@ uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, CompHints hints) {
 
         if (temp_locus->domain == symbol_local) {
             hints |= cgen_lhs_local;
-            self->saved_id = temp_locus->id;
-
-            return hints;
+            self->saved_info = *temp_locus;
+        } else if (temp_locus->domain == symbol_upval) {
+            hints |= cgen_lhs_upval;
+            self->saved_info = *temp_locus;
         }
+
+        return hints;
     }
 
     switch (temp_locus->domain) {
         case symbol_constant:
             compiler_emit_op_unflagged(self, op_put_k, temp_locus->id);
-
             break;
         case symbol_local:
             compiler_emit_op_unflagged(self, op_load_local, temp_locus->id);
-
             break;
         case symbol_func:
             // ? NOTE: The pushed ID is for a global procedure, VM or native.
             compiler_emit_op_unflagged(self, op_load_imm_gid, temp_locus->id);
-
             break;
         case symbol_string:
             compiler_emit_op_unflagged(self, op_load_string_k, temp_locus->id);
-
+            break;
+        case symbol_upval:
+            compiler_emit_op_unflagged(self, op_get_upv, temp_locus->id);
             break;
         default:
             break;
@@ -561,8 +587,10 @@ uint8_t compiler_do_lhs(Compiler *self, Lexer *lexer, CompHints hints) {
         return target_hints;
     }
 
+    const SymbolInfo dest_info = self->saved_info;
+
     if (compile_hints_check_flag(target_hints, cgen_lhs_local)) {
-        compiler_emit_op_flagged(self, op_load_local, 0, self->saved_id);
+        compiler_emit_op_flagged(self, op_load_local, 0, dest_info.id);
     }
 
     CompHints access_hints = target_hints;
@@ -1344,7 +1372,9 @@ uint8_t compiler_do_expr_stmt(Compiler *self, Lexer *lexer, CompHints hints) {
 
         // ? If we have consumed only a name = <value>, emit a simple update of that local slot.
         if (compile_hints_check_flag(dest_hints, cgen_lhs_local)) {
-            compiler_emit_op_flagged(self, op_store_local, 0, self->saved_id);
+            compiler_emit_op_flagged(self, op_store_local, 0, self->saved_info.id);
+        } else if (compile_hints_check_flag(dest_hints, cgen_lhs_upval)) {
+            compiler_emit_op_unflagged(self, op_set_upv, self->saved_info.id);
         } else if (compile_hints_check_flag(dest_hints, cgen_access_of)) {
             compiler_emit_op(self, op_set_idx);
         } else {
@@ -1605,13 +1635,8 @@ uint8_t compiler_do_lambda(Compiler *self, Lexer *lexer, CompHints hints) {
         compiler_eat_tk(self, lexer);
 
         while (!compiler_match_curr(self, tk_eof)) {
-            if (compiler_match_curr(self, tk_rparen)) {
+            if (!compiler_match_curr(self, tk_identifier)) {
                 break;
-            } else if (!compiler_match_curr(self, tk_identifier)) {
-                ScalarVec_int_del(&used_local_ids);
-                compiler_warn(self, "Expected another captured local variable name here.", &self->curr);
-                fprintf(stderr, "\tNote: See line %d, col %d.", self->curr.line, self->curr.col);
-                return cgen_parse_err;
             }
 
             // ? Eat checked identifier token here, as it's simpler to process it as self->curr.
@@ -1619,6 +1644,14 @@ uint8_t compiler_do_lambda(Compiler *self, Lexer *lexer, CompHints hints) {
                 .data = self->s.data + self->curr.begin,
                 .length = self->curr.length
             };
+
+            // ? Record upvalue for this scope, but check for illegal shadowing.
+            if (!compiler_record_capture(self, &captured_name, ScalarVec_int_len(&used_local_ids))) {
+                compiler_warn(self, "You cannot shadow any local parameter name with a capture.", &self->curr);
+                fprintf(stderr, "\tNote: See USES of lambda at line %d, col %d.\n", self->curr.line, self->curr.col);
+                return cgen_dead;
+            }
+
             const SymbolInfo *parent_local_info = SymbolTable_find(AnyVec_SymbolTable_last(&self->locals) - 1, &captured_name, symbol_local);
 
             if (parent_local_info != NULL && parent_local_info->domain == symbol_local) {
@@ -1635,7 +1668,6 @@ uint8_t compiler_do_lambda(Compiler *self, Lexer *lexer, CompHints hints) {
                 compiler_eat_tk(self, lexer);
             }
         }
-        compiler_eat_tk(self, lexer);
     }
 
     lambda_scope->var_alloc_ip = 0;
