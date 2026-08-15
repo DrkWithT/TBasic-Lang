@@ -26,6 +26,6 @@ int8_t closure_set_v_fn(void *self, Value key, Value item);
 
 void closure_display_fn(const void *self, const void *vm);
 
-uint8_t closure_invoke_fn(void *self, void *vm, Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc);
+uint8_t closure_invoke_fn(void *self, void *vm, const Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc);
 
 #endif

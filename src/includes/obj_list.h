@@ -20,7 +20,7 @@ int8_t list_set_v_fn(void *self, Value key, Value item);
 void list_display_fn(const void *self, const void *vm);
 
 // ? stub function: NOOP
-uint8_t list_invoke(void *self, void *vm, Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc);
+uint8_t list_invoke(void *self, void *vm, const Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc);
 
 // ! EXTRA method for querying object length / size. See README.
 size_t list_len(const void *self);

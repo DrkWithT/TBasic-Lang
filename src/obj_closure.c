@@ -60,13 +60,11 @@ void closure_display_fn(const void *self, const void *vm) {
     printf("Closure (bc-ptr = %p, value-ptr = %p)\n", closure->bc, closure->upvals);
 }
 
-uint8_t closure_invoke_fn(void *self, void *vm, Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc) {
+uint8_t closure_invoke_fn(void *self, void *vm, const Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc) {
     Closure *closure = (Closure *)self;
     VMState *s = (VMState *)vm;
 
     const Chunk *callee_chunk = closure->bc;
-    const Instruction *caller_checkpoint = caller_ip + 1;
-    const Value *caller_konsts = caller_cvp;
     const int caller_bp = s->bp;
     const int callee_bp = s->sp - argc;
     const uint16_t caller_cid = s->chunk_id;

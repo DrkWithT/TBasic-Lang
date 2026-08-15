@@ -83,7 +83,7 @@ void list_display_fn(const void *self, const void *vm) {
     fprintf(stdout, "\n");
 }
 
-uint8_t list_invoke(void *self, void *vm, Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc) {
+uint8_t list_invoke(void *self, void *vm, const Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc) {
     return 0;
 }
 

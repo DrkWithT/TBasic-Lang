@@ -100,6 +100,6 @@ void string_display_fn(const void *self, const void *vm_state) {
     fprintf(stdout, "\n");
 }
 
-uint8_t string_invoke(void *self, void *vm, Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc) {
+uint8_t string_invoke(void *self, void *vm, const Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc) {
     return 0;
 }

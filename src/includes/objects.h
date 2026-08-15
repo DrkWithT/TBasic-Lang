@@ -46,7 +46,7 @@ typedef struct obj_base_t {
     Value (*get_v) (const void *self, Value key);
     int8_t (*set_v) (void *self, Value key, Value item);
     void (*display) (const void *self, const void *vm);
-    uint8_t (*invoke) (void *self, void *vm, Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc); // todo
+    uint8_t (*invoke) (void *self, void *vm, const Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc); // todo
 } ObjBase;
 
 typedef const ObjBase* ObjPtr;

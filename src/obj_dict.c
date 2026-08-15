@@ -216,6 +216,6 @@ void dict_display_fn(const void *self, MAYBE_UNUSED const void *vm) {
     printf("Dict(address = %p, data = ...)", self_as_dict);
 }
 
-uint8_t dict_invoke(void *self, void *vm, Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc) {
+uint8_t dict_invoke(void *self, void *vm, const Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc) {
     return 0;
 }
