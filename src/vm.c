@@ -43,10 +43,16 @@ static OpFunc opcode_handlers[] = {
     fn_get_upv,
     fn_set_upv,
     fn_chk_none,
+    fn_bit_not,
     fn_mul,
     fn_div,
     fn_add,
     fn_sub,
+    fn_bit_and,
+    fn_bit_or,
+    fn_bit_xor,
+    fn_bit_shl,
+    fn_bit_shr,
     fn_eq,
     fn_ne,
     fn_lt,
@@ -417,6 +423,23 @@ VMStatus fn_chk_none(VMState *s, const Instruction *ip, const Value *cvp, Value 
     return dispatcher(s, ip, cvp, stack);
 }
 
+VMStatus fn_bit_not(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    Value *lhs = stack + s->sp;
+
+    if (lhs->tag != vtag_int) {
+        *lhs = make_value_real(NAN);
+    } else {
+        const int temp = lhs->data.i;
+
+        lhs->data.i = ~temp;
+    }
+
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
 VMStatus fn_mul(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
     Value *lhs = stack + s->sp - 1;
     const Value *rhs = stack + s->sp;
@@ -523,6 +546,96 @@ VMStatus fn_sub(VMState *s, const Instruction *ip, const Value *cvp, Value *stac
     }
 
     s->sp--;
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_bit_and(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    s->sp--;
+
+    Value *lhs = stack + s->sp;
+    const Value *rhs = lhs + 1;
+
+    if (lhs->tag != vtag_int || rhs->tag != vtag_int) {
+        *lhs = make_value_real(NAN);
+    } else {
+        *lhs = make_value_int(lhs->data.i & rhs->data.i);
+    }
+
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_bit_or(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    s->sp--;
+
+    Value *lhs = stack + s->sp;
+    const Value *rhs = lhs + 1;
+
+    if (lhs->tag != vtag_int || rhs->tag != vtag_int) {
+        *lhs = make_value_real(NAN);
+    } else {
+        *lhs = make_value_int(lhs->data.i | rhs->data.i);
+    }
+
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_bit_xor(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    s->sp--;
+
+    Value *lhs = stack + s->sp;
+    const Value *rhs = lhs + 1;
+
+    if (lhs->tag != vtag_int || rhs->tag != vtag_int) {
+        *lhs = make_value_real(NAN);
+    } else {
+        *lhs = make_value_int(lhs->data.i ^ rhs->data.i);
+    }
+
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_bit_shl(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    s->sp--;
+
+    Value *lhs = stack + s->sp;
+    const Value *rhs = lhs + 1;
+
+    if (lhs->tag != vtag_int || rhs->tag != vtag_int) {
+        *lhs = make_value_real(NAN);
+    } else {
+        *lhs = make_value_int(lhs->data.i << rhs->data.i);
+    }
+
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_bit_shr(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    s->sp--;
+
+    Value *lhs = stack + s->sp;
+    const Value *rhs = lhs + 1;
+
+    if (lhs->tag != vtag_int || rhs->tag != vtag_int) {
+        *lhs = make_value_real(NAN);
+    } else {
+        *lhs = make_value_int(lhs->data.i >> rhs->data.i);
+    }
+
     ip++;
 
     TAILCALL
