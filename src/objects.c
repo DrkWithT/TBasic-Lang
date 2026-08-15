@@ -15,6 +15,7 @@ int8_t object_base_flag_get(const ObjBase *self, ObjFlag flag) {
     switch (flag) {
     case oflag_mutable: return (self->meta.flags & flag);
     case oflag_iterable: return (self->meta.flags & flag) >> 1;
+    case oflag_callable: return (self->meta.flags & flag) >> 2;
     default: return 0;
     }
 }

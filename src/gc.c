@@ -4,6 +4,7 @@
 #include "basics.h"
 #include "obj_list.h"
 #include "obj_dict.h"
+#include "obj_closure.h"
 #include "gc.h"
 
 
@@ -213,6 +214,14 @@ static void GCState_mark_dict_nodes(GCState *self, const Dict *dict) {
     PtrQueue_del(&node_queue);
 }
 
+static void GCState_mark_upvals(GCState *self, const Value *upvals_p, uint32_t n) {
+    for (int16_t i = 0; i < n; i++) {
+        if (upvals_p[i].tag == vtag_obj_id) {
+            BitSet_set_at(&self->reach_bits, (upvals_p + i)->data.obj_id);
+        }
+    }
+}
+
 void GCState_collect(GCState *self, ObjHeap *heap, const Value *stack_ptr, int stack_sp) {
     if (!heap_is_ripe(heap)) {
         return;
@@ -256,6 +265,9 @@ void GCState_collect(GCState *self, ObjHeap *heap, const Value *stack_ptr, int s
             BitSet_set_at(&self->reach_bits, temp_obj_id);
         } else if (temp_obj->meta.tag == otag_dict) {
             GCState_mark_dict_nodes(self, (const Dict *)temp_obj);
+        } else if (temp_obj->meta.tag == otag_closure) {
+            const Closure *closure = (const Closure *)temp_obj;
+            GCState_mark_upvals(self, closure->upvals, closure->count);
         }
     }
 

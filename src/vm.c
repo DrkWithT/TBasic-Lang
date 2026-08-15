@@ -5,6 +5,7 @@
 #include "obj_str.h"
 #include "obj_dict.h"
 #include "obj_exception.h"
+#include "obj_closure.h"
 
 #if defined(__clang__)
 
@@ -36,8 +37,11 @@ static OpFunc opcode_handlers[] = {
     fn_load_err_ref,
     fn_mk_list,
     fn_mk_dict,
+    fn_mk_closure,
     fn_get_idx,
     fn_set_idx,
+    fn_get_upv,
+    fn_set_upv,
     fn_chk_none,
     fn_mul,
     fn_div,
@@ -280,6 +284,35 @@ VMStatus fn_mk_dict(VMState *s, const Instruction *ip, const Value *cvp, Value *
     return dispatcher(s, ip, cvp, stack);
 }
 
+VMStatus fn_mk_closure(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    const uint16_t capture_count = ip->wide;
+    s->sp -= capture_count;
+
+    const Value *maybe_callee = stack + s->sp;
+
+    if (maybe_callee->tag != vtag_int) {
+        s->status = vm_status_err_bad_call;
+        return s->status;
+    }
+
+    const int global_chunk_id = maybe_callee->data.i;
+
+    ObjMutPtr temp_closure_p = (ObjMutPtr)alloc_closure(s->prgm->chunks.data + global_chunk_id, maybe_callee + 1, capture_count, global_chunk_id);
+
+    if (temp_closure_p == NULL) {
+        s->status = vm_status_err_bad_op;
+        return s->status;
+    }
+
+    const int16_t closure_oid = heap_store(&s->heap, temp_closure_p);
+
+    stack[s->sp] = make_value_obj(closure_oid);
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
 VMStatus fn_get_idx(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
     /*
      * EXAMPLE: expr foo::0 ;
@@ -346,6 +379,26 @@ VMStatus fn_set_idx(VMState *s, const Instruction *ip, const Value *cvp, Value *
         s->sp -= 2;
         // stack[s->sp] = incoming_temp;
     }
+
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_get_upv(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    s->sp++;
+    stack[s->sp] = s->upvals[ip->wide];
+
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_set_upv(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    s->upvals[ip->wide] = stack[s->sp];
+    s->sp--;
 
     ip++;
 
@@ -686,12 +739,18 @@ VMStatus fn_call(VMState *s, const Instruction *ip, const Value *cvp, Value *sta
     const int16_t arg_count = ip->wide;
     const Value *callee_ref = stack + s->sp - arg_count;
 
-    if (callee_ref->tag != vtag_int) {
+    if (callee_ref->tag == vtag_obj_id) {
+        ObjMutPtr maybe_closure = heap_getm(&s->heap, callee_ref->data.obj_id);
+
+        s->status = maybe_closure->invoke(maybe_closure, s, ip, cvp, stack, arg_count);
+
+        TAILCALL
+        return dispatcher(s, ip + 1, cvp, stack);
+    } else if (callee_ref->tag != vtag_int) {
         return vm_status_err_bad_call;
     }
 
     // ? Case 2: handle bytecode calls...
-    // ! FIXME: use self->frames.
     const Chunk *callee_chunk = s->prgm->chunks.data + callee_ref->data.i;
     const Instruction *caller_ret_ip = ip + 1;
     const Value *caller_cvp = cvp;
@@ -702,7 +761,7 @@ VMStatus fn_call(VMState *s, const Instruction *ip, const Value *cvp, Value *sta
     s->bp = callee_bp;
     s->chunk_id = callee_ref->data.i;
 
-    // ? For speed and simplicity, use the native stack to track VM call recursions...
+    // ? For speed and simplicity, use the native stack to track recursion.
     s->depth++;
     dispatcher(s, callee_chunk->code.data, callee_chunk->constants.data, stack);
 
@@ -1187,6 +1246,7 @@ VMState make_vm(const Program *program, const NativeFn *native_table_ptr, int lo
         .native_table = native_table_ptr,
         .prgm = program,
         .stack = stack_buffer,
+        .upvals = NULL,
         .sp = 0,
         .bp = 0,
         .chunk_id = program->entry_id,

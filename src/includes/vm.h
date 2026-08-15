@@ -42,8 +42,11 @@ VMStatus fn_load_string_k(VMState *s, const Instruction *ip, const Value *cvp, V
 VMStatus fn_load_err_ref(VMState *s, const Instruction *ip, const Value *cvp, Value *stack);
 VMStatus fn_mk_list(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_mk_dict(VMState *, const Instruction *, const Value *, Value *);
+VMStatus fn_mk_closure(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_get_idx(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_set_idx(VMState *, const Instruction *, const Value *, Value *);
+VMStatus fn_get_upv(VMState *, const Instruction *, const Value *, Value *);
+VMStatus fn_set_upv(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_chk_none(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_mul(VMState *, const Instruction *, const Value *, Value *);
 VMStatus fn_div(VMState *, const Instruction *, const Value *, Value *);
@@ -89,6 +92,7 @@ typedef struct vm_state_t {
     const NativeFn *native_table;
     const Program *prgm;
     Value *stack;
+    Value *upvals;
     int sp;
     int bp;
     uint16_t chunk_id;

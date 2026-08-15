@@ -1,0 +1,20 @@
+`test simple closure`
+
+FUN mkFoo(a):
+    RET FUN(x) USES a:
+        RET x * a;
+    END;
+END
+
+FUN mkBar(a, b, c):
+    RET FUN(x) USES a, c:
+        RET x > a && x < c;
+    END;
+END
+
+LET foo : mkFoo(2);
+LET bar : mkBar(1, NIL, 3);
+ASSERT foo(21) == 42, "Expected closure foo result of 42.";
+ASSERT foo(2), "Expected closure bar result of TRUE.";
+
+RET TRUE;

@@ -53,8 +53,11 @@ typedef enum vm_opcode_t : uint8_t {
     op_load_err_ref,
     op_mk_list,
     op_mk_dict,
+    op_mk_closure,    // ? ARGS: N; wraps a function's chunk in a closure, given its global ID remaining on the stack to consume. Takes N captures.
     op_get_idx,
     op_set_idx,
+    op_get_upv,       // ? ARGS: N; gets upvalue N.
+    op_set_upv,       // ? ARGS: N; see `op_get_upv`.
     op_chk_none,      // ? checks if a value is NIL
     op_mul,
     op_div,

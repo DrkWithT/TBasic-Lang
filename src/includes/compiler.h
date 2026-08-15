@@ -15,6 +15,7 @@ typedef struct compiler_t {
     SymbolTable globals;
     AnyVec_SymbolTable locals;
     AnyVec_ActiveLoop loops;
+    SymbolInfo saved_info;
     charspan s;             // ? pg source view
     Token prev;
     Token curr;
@@ -23,7 +24,6 @@ typedef struct compiler_t {
     int16_t chunk_idx;  // ? 0 indexes top level code, 1+ indexes a code chunk per procedure, applying only for compiling a FUN decl.
     int16_t next_native_id;
     int16_t next_str_id;
-    uint8_t saved_id;
 } Compiler;
 
 Compiler make_compiler();
@@ -51,6 +51,7 @@ const SymbolInfo *compiler_record_function(Compiler *self, const charspan *symbo
 const SymbolInfo *compiler_record_local(Compiler *self, const charspan *symbol);
 const SymbolInfo *compiler_record_constant(Compiler *self_symbol, const charspan *symbol, Value v);
 const SymbolInfo *compiler_record_string(Compiler *self, const charspan *symbol);
+uint8_t compiler_record_capture(Compiler *self, const charspan *symbol, int16_t curr_captures_n);
 
 ActiveLoop *compiler_enter_loop(Compiler *self);
 void compiler_leave_loop(Compiler *self);

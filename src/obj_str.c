@@ -15,7 +15,8 @@ String *alloc_string(size_t capacity) {
         .as_bool = string_as_bool_fn,
         .get_v = string_get_v_fn,
         .set_v = string_set_v_fn,
-        .display = string_display_fn
+        .display = string_display_fn,
+        .invoke = string_invoke
     };
 
     mystr contents;
@@ -37,7 +38,8 @@ String *alloc_string_of_mystr(mystr *s) {
         .as_bool = string_as_bool_fn,
         .get_v = string_get_v_fn,
         .set_v = string_set_v_fn,
-        .display = string_display_fn
+        .display = string_display_fn,
+        .invoke = string_invoke
     };
     temp->data = *s;
 
@@ -96,4 +98,8 @@ void string_display_fn(const void *self, const void *vm_state) {
         stdout
     );
     fprintf(stdout, "\n");
+}
+
+uint8_t string_invoke(void *self, void *vm, const Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc) {
+    return 0;
 }

@@ -93,8 +93,32 @@ A very trivial scripting language implemented in C11. Only for educational purpo
  - Add debug info per bytecode chunk e.g line & col per statement. **OK**
 
 #### v0.13.x: QoL 5
- - Apply new convention for tbstd:
-    - `_` prefix for native builtins. Bind to alias variable.
+ - Add closures. **WIP**
+  ```
+    FUN makeCounter(x, y):
+      RET FUN() USES (x, y):
+        x = x + y;
+
+        RET x;
+      END
+    END
+  ```
+ - Add iterator support.
+    - Iterators only work on `ObjBase` types, holding a reference to them.
+    - Iterators have certain codes for actions:
+      - 0 -> check
+      - 1 -> peek
+      - 2 -> get & consume
+    - Library: `mkit` to create forward iterators.
+ - Add list slicing.
+  ```
+    LET foo : [1, 2, 3, 4];
+    LET partFoo : CUT [foo : 0 : 2];
+  ```
+ - Add bitwise NOT, AND, OR
+ - Add bit shifting.
+
+#### v0.14.x: QoL 6
  - Expand builtin library:
     - Add `typeof` function:
       - `typeof(val)`
@@ -107,9 +131,12 @@ A very trivial scripting language implemented in C11. Only for educational purpo
       - `apply(fn, argv)` using native `__apply(fn, argv)`.
     - Add dict functions:
       - `dckeys(dict)` using native `__iterof(dict)`.
-    - Add more file functions:
+    - Add file stream functions:
       - `fopen(path, bitflags)`
       - `fclose(fd)`
       - `fpeek(fd)`
       - `fread(fd, buf, n)`
       - `fwrite(fd, buf, n)`
+
+#### v0.15.x: QoL 7
+ - Add the ability to generate standalone C files which bundle TBasic bytecode & the interpreter as an executable.

@@ -173,7 +173,8 @@ Dict *alloc_dict() {
             .as_bool = dict_as_bool_fn,
             .get_v = dict_get_v_fn,
             .set_v = dict_set_v_fn,
-            .display = dict_display_fn
+            .display = dict_display_fn,
+            .invoke = dict_invoke
         };
 
         temp->root = NULL;
@@ -213,4 +214,8 @@ int8_t dict_set_v_fn(void *self, Value key, Value item) {
 void dict_display_fn(const void *self, MAYBE_UNUSED const void *vm) {
     const Dict *self_as_dict = (const Dict *)self;
     printf("Dict(address = %p, data = ...)", self_as_dict);
+}
+
+uint8_t dict_invoke(void *self, void *vm, const Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc) {
+    return 0;
 }

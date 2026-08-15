@@ -20,6 +20,7 @@ Compiler make_compiler() {
         .globals = make_symbol_table(),
         .locals = local_scopes,
         .loops = temp_loops,
+        .saved_info = make_symbol_info((charspan) {.data = NULL, .length = 0}, 0, symbol_constant),
         .s = (charspan) {.data = NULL, .length = 0},
         .curr = (Token) {
             .begin = 0,
@@ -38,7 +39,6 @@ Compiler make_compiler() {
         .chunk_idx = 0,
         .next_native_id = 0,
         .next_str_id = 0,
-        .saved_id = 0
     };
 }
 
@@ -211,13 +211,18 @@ void compiler_end_local_scope(Compiler *self) {
 
 const SymbolInfo *compiler_resolve_name(const Compiler *self, const charspan *s) {
     const SymbolInfo *temp = SymbolTable_find(&self->globals, s, symbol_func);
-
     if (temp != NULL) {
         return temp;
     }
 
     const SymbolTable *curr_scope = AnyVec_SymbolTable_last(&self->locals);
-    return SymbolTable_find(curr_scope, s, symbol_local);
+
+    const SymbolInfo *maybe_local = SymbolTable_find(curr_scope, s, symbol_local);
+    if (maybe_local != NULL) {
+        return maybe_local;
+    }
+
+    return SymbolTable_find(curr_scope, s, symbol_upval);
 }
 
 const SymbolInfo *compiler_record_function(Compiler *self, const charspan *s, int chunk_id) {
@@ -302,6 +307,25 @@ const SymbolInfo *compiler_record_string(Compiler *self, const charspan *s) {
     return SymbolTable_push(&self->globals, &new_info);
 }
 
+uint8_t compiler_record_capture(Compiler *self, const charspan *symbol, int16_t curr_captures_n) {
+    SymbolTable *curr_scope = AnyVec_SymbolTable_lastm(&self->locals);
+    const SymbolInfo *maybe_duped_local = SymbolTable_find(curr_scope, symbol, symbol_local);
+
+    if (maybe_duped_local != NULL) {
+        return 0;
+    }
+
+    SymbolInfo temp_upval_info = {
+        .name = *symbol,
+        .id = curr_captures_n,
+        .domain = symbol_upval,
+    };
+
+    SymbolTable_push(curr_scope, &temp_upval_info);
+
+    return 1;
+}
+
 
 
 ActiveLoop *compiler_enter_loop(Compiler *self) {
@@ -347,7 +371,7 @@ uint8_t compiler_do_list(Compiler *self, Lexer *lexer, CompHints hints) {
 
         const CompHints item_hints = compiler_do_or(self, lexer, hints);
         if (!compile_hints_check_flag(item_hints, cgen_visit_ok)) {
-            fprintf(stderr, "\tNote: See list item #%d around line %d\n", item_count, self->prev.line);
+            fprintf(stderr, "\tNote: See list item #%d around line %d, col %d.\n", item_count, self->prev.line, self->prev.col);
             return item_hints;
         }
 
@@ -482,12 +506,13 @@ uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, CompHints hints) {
             temp_hints = compiler_do_or(self, lexer, hints);
 
             if (!compile_hints_check_flag(temp_hints, cgen_visit_ok)) {
-                fprintf(stderr, "\tNote: See parenthesized expr at around line %d.\n", self->prev.line);
+                fprintf(stderr, "\tNote: See parenthesized expr at around line %d, col %d\n", self->prev.line, self->prev.col);
                 return temp_hints;
             }
 
             if (!compiler_match_curr(self, tk_rparen)) {
                 compiler_warn(self, "Expected ')' closing parenthesized expr.", &self->curr);
+                fprintf(stderr, "\tNote: See line %d, col %d.", self->curr.line, self->curr.col);
                 return cgen_parse_err;
             }
 
@@ -502,6 +527,7 @@ uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, CompHints hints) {
             return compiler_do_lambda(self, lexer, hints);
         default:
             compiler_warn(self, "Unexpected token in literal, expected none, true, false, or a name.", curr_ref);
+            fprintf(stderr, "\tNote: See line %d, col %d.", self->curr.line, self->curr.col);
 
             return cgen_parse_err;
     }
@@ -517,29 +543,31 @@ uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, CompHints hints) {
 
         if (temp_locus->domain == symbol_local) {
             hints |= cgen_lhs_local;
-            self->saved_id = temp_locus->id;
-
-            return hints;
+            self->saved_info = *temp_locus;
+        } else if (temp_locus->domain == symbol_upval) {
+            hints |= cgen_lhs_upval;
+            self->saved_info = *temp_locus;
         }
+
+        return hints;
     }
 
     switch (temp_locus->domain) {
         case symbol_constant:
             compiler_emit_op_unflagged(self, op_put_k, temp_locus->id);
-
             break;
         case symbol_local:
             compiler_emit_op_unflagged(self, op_load_local, temp_locus->id);
-
             break;
         case symbol_func:
             // ? NOTE: The pushed ID is for a global procedure, VM or native.
             compiler_emit_op_unflagged(self, op_load_imm_gid, temp_locus->id);
-
             break;
         case symbol_string:
             compiler_emit_op_unflagged(self, op_load_string_k, temp_locus->id);
-
+            break;
+        case symbol_upval:
+            compiler_emit_op_unflagged(self, op_get_upv, temp_locus->id);
             break;
         default:
             break;
@@ -551,7 +579,7 @@ uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, CompHints hints) {
 uint8_t compiler_do_lhs(Compiler *self, Lexer *lexer, CompHints hints) {
     const CompHints target_hints = compiler_do_literal(self, lexer, hints);
     if (!compile_hints_check_flag(target_hints, cgen_visit_ok)) {
-        fprintf(stderr, "\tNote: See LHS of access-of expression at line %d.\n", self->curr.line);
+        fprintf(stderr, "\tNote: See LHS of access-of expression at line %d, col %d.\n", self->curr.line, self->curr.col);
         return target_hints;
     }
 
@@ -559,8 +587,10 @@ uint8_t compiler_do_lhs(Compiler *self, Lexer *lexer, CompHints hints) {
         return target_hints;
     }
 
+    const SymbolInfo dest_info = self->saved_info;
+
     if (compile_hints_check_flag(target_hints, cgen_lhs_local)) {
-        compiler_emit_op_flagged(self, op_load_local, 0, self->saved_id);
+        compiler_emit_op_flagged(self, op_load_local, 0, dest_info.id);
     }
 
     CompHints access_hints = target_hints;
@@ -575,7 +605,7 @@ uint8_t compiler_do_lhs(Compiler *self, Lexer *lexer, CompHints hints) {
 
         const CompHints key_hints = compiler_do_or(self, lexer, access_hints);
         if (!compile_hints_check_flag(key_hints, cgen_visit_ok)) {
-            fprintf(stderr, "\tNote: See RHS of access-of expression at line %d.\n", self->curr.line);
+            fprintf(stderr, "\tNote: See RHS of access-of expression at line %d, col %d.\n", self->curr.line, self->curr.col);
             return key_hints;
         }
 
@@ -599,7 +629,7 @@ uint8_t compiler_do_call(Compiler *self, Lexer *lexer, CompHints hints) {
 
     const CompHints lhs_hints = compiler_do_lhs(self, lexer, hints);
     if (!compile_hints_check_flag(lhs_hints, cgen_visit_ok)) {
-        fprintf(stderr, "\tNote: See LHS at line %d.\n", self->curr.line);
+        fprintf(stderr, "\tNote: See LHS at line %d, col %d.\n", self->curr.line, self->curr.col);
         return lhs_hints;
     }
 
@@ -615,7 +645,7 @@ uint8_t compiler_do_call(Compiler *self, Lexer *lexer, CompHints hints) {
 
         const CompHints call_hints = compiler_do_compare(self, lexer, hints);
         if (!compile_hints_check_flag(call_hints, cgen_visit_ok)) {
-            fprintf(stderr, "\tNote: See comparison at line %d, argument #%d of call here.\n", callee_name.line, arg_count);
+            fprintf(stderr, "\tNote: See comparison at line %d, col %d, argument #%d of call here.\n", callee_name.line, callee_name.col, arg_count);
             return call_hints;
         }
 
@@ -878,6 +908,7 @@ uint8_t compiler_do_vars(Compiler *self, Lexer *lexer, CompHints hints) {
             break;
         } else if (!compiler_match_curr(self, tk_identifier)) {
             compiler_warn(self, "Expected name in variable declaration here.", &self->curr);
+            fprintf(stderr, "\tNote: See line %d, col %d.", self->curr.line, self->curr.col);
             return cgen_parse_err;
         }
 
@@ -893,6 +924,8 @@ uint8_t compiler_do_vars(Compiler *self, Lexer *lexer, CompHints hints) {
 
         if (!compiler_match_curr(self, tk_colon)) {
             compiler_warn(self, "Expected ':' before variable initializer.", &self->curr);
+            fprintf(stderr, "\tNote: See line %d, col %d.", self->curr.line, self->curr.col);
+
             return cgen_parse_err;
         }
         compiler_eat_tk(self, lexer);
@@ -918,18 +951,20 @@ uint8_t compiler_do_binding(Compiler *self, Lexer *lexer, CompHints hints) {
 
     const CompHints lhs_list_hints = compiler_do_literal(self, lexer, hints);
     if (!compile_hints_check_flag(lhs_list_hints, cgen_visit_ok)) {
-        fprintf(stderr, "\tNote: see BIND statement's LHS around line %d here.", self->prev.line);
+        fprintf(stderr, "\tNote: see BIND statement's LHS around line %d, col %d here.", self->prev.line, self->prev.col);
         return lhs_list_hints;
     }
 
     if (!compiler_match_curr(self, tk_colon)) {
         compiler_warn(self, "Expected ':' after BIND statement LHS here.", &self->curr);
+        fprintf(stderr, "\tNote: See line %d, col %d.", self->curr.line, self->curr.col);
         return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer);
 
     if (!compiler_match_curr(self, tk_lbrack)) {
         compiler_warn(self, "Expected opening '[' of BIND statement RHS here.", &self->curr);
+        fprintf(stderr, "\tNote: See line %d, col %d.", self->curr.line, self->curr.col);
         return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer);
@@ -941,7 +976,7 @@ uint8_t compiler_do_binding(Compiler *self, Lexer *lexer, CompHints hints) {
             break;
         } else if (!compiler_match_curr(self, tk_identifier)) {
             compiler_warn(self, "Expected name in BIND RHS here.", &self->curr);
-            fprintf(stderr, "\tNote: see line %d.", self->curr.line);
+            fprintf(stderr, "\tNote: See line %d, col %d.", self->curr.line, self->curr.col);
             return cgen_parse_err;
         }
 
@@ -964,6 +999,7 @@ uint8_t compiler_do_binding(Compiler *self, Lexer *lexer, CompHints hints) {
 
     if (!compiler_match_curr(self, tk_semicolon)) {
         compiler_warn(self, "Expected closing ';' of BIND statement here.", &self->curr);
+        fprintf(stderr, "\tNote: See line %d, col %d.", self->curr.line, self->curr.col);
         return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer);
@@ -1009,7 +1045,7 @@ uint8_t compiler_do_ifs(Compiler *self, Lexer *lexer, CompHints hints) {
     const uint16_t begin_else_pos = jump_skip_else_pos + 1;
     const CompHints falsy_path_stmt_hints = compiler_do_nestable_stmt(self, lexer, hints);
     if (!compile_hints_check_flag(falsy_path_stmt_hints, cgen_visit_ok)) {
-        fprintf(stderr, "\tNote: See else-clause in the falsy-body around line %d.\n", self->curr.line);
+        fprintf(stderr, "\tNote: See else-clause in the falsy-body around line %d, col %d.\n", self->curr.line, self->curr.col);
         return falsy_path_stmt_hints;
     }
 
@@ -1030,7 +1066,7 @@ uint8_t compiler_do_while(Compiler *self, Lexer *lexer, CompHints hints) {
     const uint16_t while_check_pos = self->pg.chunks.data[self->chunk_idx].code.length;
     const CompHints loop_cond_hints = compiler_do_or(self, lexer, hints);
     if (!compile_hints_check_flag(loop_cond_hints, cgen_visit_ok)) {
-        fprintf(stderr, "\tNote: See while-loop condition around line %d.\n", self->curr.line);
+        fprintf(stderr, "\tNote: See while-loop condition around line %d, col %d.\n", self->curr.line, self->curr.col);
         compiler_leave_loop(self);
         return loop_cond_hints;
     }
@@ -1040,7 +1076,7 @@ uint8_t compiler_do_while(Compiler *self, Lexer *lexer, CompHints hints) {
 
     const CompHints loop_body_hints = compiler_do_block(self, lexer, hints);
     if (!compile_hints_check_flag(loop_body_hints, cgen_visit_ok)) {
-        fprintf(stderr, "\tNote: See while-body around line %d.\n", self->curr.line);
+        fprintf(stderr, "\tNote: See while-body around line %d, col %d.\n", self->curr.line, self->curr.col);
         compiler_leave_loop(self);
         return loop_body_hints;
     }
@@ -1081,8 +1117,7 @@ uint8_t compiler_do_for(Compiler *self, Lexer *lexer, CompHints hints) {
 
     if (!compiler_match_curr(self, tk_identifier)) {
         compiler_warn(self, "Expected name for counter variable in C-style for loop here.", &self->curr);
-        fprintf(stderr, "\tNote: See line %d.\n", self->curr.line);
-
+        fprintf(stderr, "\tNote: See line %d, col %d.", self->curr.line, self->curr.col);
         compiler_leave_loop(self);
         return cgen_parse_err;
     }
@@ -1097,16 +1132,14 @@ uint8_t compiler_do_for(Compiler *self, Lexer *lexer, CompHints hints) {
 
     if (!compiler_match_curr(self, tk_colon)) {
         compiler_warn(self, "Expected ':' after counter variable in C-style FOR loop here.", &self->curr);
-        fprintf(stderr, "\tNote: See line %d.\n", self->curr.line);
-
+        fprintf(stderr, "\tNote: See line %d, col %d.", self->curr.line, self->curr.col);
         compiler_leave_loop(self);
         return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer);
 
     if (!compiler_do_or(self, lexer, hints)) {
-        fprintf(stderr, "\tNote: invalid initializer of FOR loop counter around line %d.\n", self->prev.line);
-
+        fprintf(stderr, "\tNote: invalid initializer of FOR loop counter around line %d, col %d.\n", self->prev.line, self->prev.col);
         compiler_leave_loop(self);
         return cgen_dead;
     }
@@ -1115,13 +1148,13 @@ uint8_t compiler_do_for(Compiler *self, Lexer *lexer, CompHints hints) {
         compiler_emit_op_unflagged(self, op_store_local, counter_info->id);
     } else {
         compiler_warn(self, "Invalid name of loop counter around here- shadows a similar non-local name.", &self->prev);
-        fprintf(stderr, "\tNote: see line %d.\n", counter_name_line);
+        fprintf(stderr, "\tNote: See line %d, col %d.", self->curr.line, self->curr.col);
         return cgen_dead;
     }
 
     if (!compiler_match_curr(self, tk_comma)) {
         compiler_warn(self, "Expected ',' after counter in FOR loop here.", &self->curr);
-        fprintf(stderr, "\tNote: see line %d.\n", self->curr.line);
+        fprintf(stderr, "\tNote: See line %d, col %d.", self->curr.line, self->curr.col);
         return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer);
@@ -1129,7 +1162,7 @@ uint8_t compiler_do_for(Compiler *self, Lexer *lexer, CompHints hints) {
     const uint16_t loop_begin_pos = self->pg.chunks.data[self->chunk_idx].code.length;
     const CompHints loop_cond_hints = compiler_do_or(self, lexer, hints);
     if (!compile_hints_check_flag(loop_cond_hints, cgen_visit_ok)) {
-        fprintf(stderr, "\tNote: invalid condition of FOR loop around line %d.\n", self->prev.line);
+        fprintf(stderr, "\tNote: invalid condition of FOR loop around line %d, col%d.\n", self->prev.line, self->prev.col);
 
         compiler_leave_loop(self);
         return loop_cond_hints;
@@ -1139,7 +1172,7 @@ uint8_t compiler_do_for(Compiler *self, Lexer *lexer, CompHints hints) {
 
     if (!compiler_match_curr(self, tk_comma)) {
         compiler_warn(self, "Expected ',' after check in FOR loop here.", &self->curr);
-        fprintf(stderr, "\tNote: see line %d.\n", self->curr.line);
+        fprintf(stderr, "\tNote: see line %d, col %d.\n", self->curr.line, self->curr.col);
         return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer);
@@ -1152,7 +1185,7 @@ uint8_t compiler_do_for(Compiler *self, Lexer *lexer, CompHints hints) {
 
     const CompHints update_clause_hints = compiler_do_expr_stmt(self, lexer, hints);
     if (!compile_hints_check_flag(update_clause_hints, cgen_visit_ok)) {
-        fprintf(stderr, "\tNote: invalid update clause of FOR loop around line %d.\n", self->prev.line);
+        fprintf(stderr, "\tNote: invalid update clause of FOR loop around line %d, col %d.\n", self->prev.line, self->prev.col);
 
         compiler_leave_loop(self);
         return update_clause_hints;
@@ -1205,13 +1238,13 @@ uint8_t compiler_do_break(Compiler *self, Lexer *lexer, CompHints hints) {
 
     if (AnyVec_ActiveLoop_empty(&self->loops)) {
         compiler_warn(self, "Expected an enclosing loop for a 'BREAK' statement here.", &self->prev);
-        fprintf(stderr, "\tNote: see line %d.\n", self->prev.line);
+        fprintf(stderr, "\tNote: see line %d, col %d.\n", self->prev.line, self->prev.col);
         return cgen_dead;
     }
 
     if (!compiler_match_curr(self, tk_semicolon)) {
         compiler_warn(self, "Expected a ';' closing a 'BREAK' statement here.", &self->prev);
-        fprintf(stderr, "\tNote: see line %d.\n", self->prev.line);
+        fprintf(stderr, "\tNote: see line %d, col %d.\n", self->prev.line, self->prev.col);
         return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer);
@@ -1251,14 +1284,14 @@ uint8_t compiler_do_ret(Compiler *self, Lexer *lexer, CompHints hints) {
 
     const CompHints result_hints = compiler_do_or(self, lexer, hints & ~cgen_assign_to);
     if (!compile_hints_check_flag(result_hints, cgen_visit_ok)) {
-        fprintf(stderr, "\tNote 1: See return-result expression at line %d.\n", self->curr.line);
+        fprintf(stderr, "\tNote 1: See return-result expression at line %d, col %d.\n", self->curr.line, self->curr.col);
         return result_hints;
     }
     compiler_emit_op(self, op_ret);
 
     if (!compiler_match_curr(self, tk_semicolon)) {
         compiler_warn(self, "Expected ';' after return statement.", &self->curr);
-        fprintf(stderr, "\tNote: see line %d.\n", self->curr.line);
+        fprintf(stderr, "\tNote: see line %d, col %d.\n", self->curr.line, self->curr.col);
         return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer);
@@ -1279,7 +1312,7 @@ uint8_t compiler_do_throw(Compiler *self, Lexer *lexer, CompHints hints) {
 
     if (!compiler_match_curr(self, tk_semicolon)) {
         compiler_warn(self, "Expected ';' after THROW-stmt.", &self->curr);
-        fprintf(stderr, "\tNote: see line %d.\n", self->curr.line);
+        fprintf(stderr, "\tNote: see line %d, col %d.\n", self->curr.line, self->curr.col);
         return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer);
@@ -1339,19 +1372,21 @@ uint8_t compiler_do_expr_stmt(Compiler *self, Lexer *lexer, CompHints hints) {
 
         // ? If we have consumed only a name = <value>, emit a simple update of that local slot.
         if (compile_hints_check_flag(dest_hints, cgen_lhs_local)) {
-            compiler_emit_op_flagged(self, op_store_local, 0, self->saved_id);
+            compiler_emit_op_flagged(self, op_store_local, 0, self->saved_info.id);
+        } else if (compile_hints_check_flag(dest_hints, cgen_lhs_upval)) {
+            compiler_emit_op_unflagged(self, op_set_upv, self->saved_info.id);
         } else if (compile_hints_check_flag(dest_hints, cgen_access_of)) {
             compiler_emit_op(self, op_set_idx);
         } else {
             compiler_warn(self, "Invalid LHS of assignment, expected a name or key-access expression.\n", &self->prev);
-            fprintf(stderr, "\tNote: see line %d.\n", self->prev.line);
+            fprintf(stderr, "\tNote: see line %d\n", self->prev.line);
             return cgen_dead;
         }
     }
 
     if (!compiler_match_curr(self, tk_semicolon)) {
         compiler_warn(self, "Expected ';' after expr-stmt.", &self->curr);
-        fprintf(stderr, "\tNote: see line %d.\n", self->curr.line);
+        fprintf(stderr, "\tNote: see line %d, col %d.\n", self->curr.line, self->curr.col);
         return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer);
@@ -1430,7 +1465,7 @@ uint8_t compiler_do_func(Compiler *self, Lexer *lexer, CompHints hints) {
 
     if (!compiler_match_curr(self, tk_identifier)) {
         compiler_warn(self, "Expected name for FUN declaration.", &self->curr);
-        fprintf(stderr, "\tNote: see line %d.\n", self->curr.line);
+        fprintf(stderr, "\tNote: See line %d, col %d.", self->curr.line, self->curr.col);
         return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer);
@@ -1450,6 +1485,7 @@ uint8_t compiler_do_func(Compiler *self, Lexer *lexer, CompHints hints) {
 
     if (!compiler_match_curr(self, tk_lparen)) {
         compiler_warn(self, "Expected '(' starting function params here.", &self->curr);
+        fprintf(stderr, "\tNote: See line %d, col %d.", self->curr.line, self->curr.col);
         return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer);
@@ -1462,7 +1498,7 @@ uint8_t compiler_do_func(Compiler *self, Lexer *lexer, CompHints hints) {
             break;
         } else if (!compiler_match_curr(self, tk_identifier)) {
             compiler_warn(self, "Expected name in params list here.", &self->curr);
-            fprintf(stderr, "\tNote: see line %d.\n", self->curr.line);
+            fprintf(stderr, "\tNote: See line %d, col %d.", self->curr.line, self->curr.col);
             return cgen_parse_err;
         }
         
@@ -1513,12 +1549,14 @@ uint8_t compiler_do_assert(Compiler *self, Lexer *lexer, CompHints hints) {
 
     if (!compiler_match_curr(self, tk_comma)) {
         compiler_warn(self, "Expected a ',' after asserted expression here.", &self->curr);
+        fprintf(stderr, "\tNote: See line %d, col %d.", self->curr.line, self->curr.col);
         return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer);
 
     if (!compiler_match_curr(self, tk_string)) {
         compiler_warn(self, "Expected a message string for an assertion here.", &self->curr);
+        fprintf(stderr, "\tNote: See line %d, col %d.", self->curr.line, self->curr.col);
         return cgen_parse_err;
     }
 
@@ -1529,6 +1567,7 @@ uint8_t compiler_do_assert(Compiler *self, Lexer *lexer, CompHints hints) {
 
     if (!compiler_match_curr(self, tk_semicolon)) {
         compiler_warn(self, "Expected a ';' ending the ASSERT here.", &self->curr);
+        fprintf(stderr, "\tNote: See line %d, col %d.", self->curr.line, self->curr.col);
         return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer);
@@ -1546,11 +1585,12 @@ uint8_t compiler_do_lambda(Compiler *self, Lexer *lexer, CompHints hints) {
 
     if (!compiler_match_curr(self, tk_lparen)) {
         compiler_warn(self, "Expected a '(' starting lambda params here.", &self->curr);
+        fprintf(stderr, "\tNote: See line %d, col %d.", self->curr.line, self->curr.col);
         return cgen_parse_err;
     }
     compiler_eat_tk(self, lexer);
 
-    const int16_t old_chunk_idx = self->chunk_idx; // ! FIXME: this might be set to 1 incorrectly: exceptions.tbasic should generate op_load_imm_gid 0, 11 in chunk 10 (main) !
+    const int16_t old_chunk_idx = self->chunk_idx;
     Chunk temp_chunk;
     Chunk_dud(&temp_chunk);
     AnyVec_Chunk_push(&self->pg.chunks, &temp_chunk);
@@ -1560,12 +1600,16 @@ uint8_t compiler_do_lambda(Compiler *self, Lexer *lexer, CompHints hints) {
 
     SymbolTable *lambda_scope = compiler_begin_local_scope(self);
 
+    ScalarVec_int used_local_ids;
+    ScalarVec_int_dud(&used_local_ids);
+
     while (!compiler_match_curr(self, tk_eof)) {
         if (compiler_match_curr(self, tk_rparen)) {
             break;
         } else if (!compiler_match_curr(self, tk_identifier)) {
+            ScalarVec_int_del(&used_local_ids);
             compiler_warn(self, "Expected name in lambda params list here.", &self->curr);
-            fprintf(stderr, "\tNote: see line %d.\n", self->curr.line);
+            fprintf(stderr, "\tNote: See line %d, col %d.", self->curr.line, self->curr.col);
             return cgen_parse_err;
         }
 
@@ -1586,11 +1630,52 @@ uint8_t compiler_do_lambda(Compiler *self, Lexer *lexer, CompHints hints) {
     }
     compiler_eat_tk(self, lexer);
 
+    // ? Handle optional selective capture clause if present, recording the parent's local IDs for patching the closure later.
+    if (compiler_match_curr(self, tk_keyword_uses)) {
+        compiler_eat_tk(self, lexer);
+
+        while (!compiler_match_curr(self, tk_eof)) {
+            if (!compiler_match_curr(self, tk_identifier)) {
+                break;
+            }
+
+            // ? Eat checked identifier token here, as it's simpler to process it as self->curr.
+            const charspan captured_name = {
+                .data = self->s.data + self->curr.begin,
+                .length = self->curr.length
+            };
+
+            // ? Record upvalue for this scope, but check for illegal shadowing.
+            if (!compiler_record_capture(self, &captured_name, ScalarVec_int_len(&used_local_ids))) {
+                compiler_warn(self, "You cannot shadow any local parameter name with a capture.", &self->curr);
+                fprintf(stderr, "\tNote: See USES of lambda at line %d, col %d.\n", self->curr.line, self->curr.col);
+                return cgen_dead;
+            }
+
+            const SymbolInfo *parent_local_info = SymbolTable_find(AnyVec_SymbolTable_last(&self->locals) - 1, &captured_name, symbol_local);
+
+            if (parent_local_info != NULL && parent_local_info->domain == symbol_local) {
+                ScalarVec_int_push(&used_local_ids, parent_local_info->id);
+            } else {
+                compiler_warn(self, "Expected the name captured here to be a local of the immediate parent function / lambda.", &self->curr);
+                fprintf(stderr, "\tNote: See line %d, col %d.", self->curr.line, self->curr.col);
+                return cgen_dead;
+            }
+
+            compiler_eat_tk(self, lexer);
+
+            if (compiler_match_curr(self, tk_comma)) {
+                compiler_eat_tk(self, lexer);
+            }
+        }
+    }
+
     lambda_scope->var_alloc_ip = 0;
     compiler_emit_op_unflagged(self, op_reserve, 0);
 
     if (!compiler_do_block(self, lexer, hints)) {
-        fprintf(stderr, "\tNote: See lambda body around line %d.\n", self->curr.line);
+        ScalarVec_int_del(&used_local_ids);
+        fprintf(stderr, "\tNote: See lambda body around line %d, col %d.\n", self->curr.line, self->curr.col);
         return cgen_dead;
     } else {
         // ! IMPORTANT: Like `compiler_do_func`, place function bytecode terminator for exceptions to heed, avoiding an OOB access.
@@ -1603,7 +1688,21 @@ uint8_t compiler_do_lambda(Compiler *self, Lexer *lexer, CompHints hints) {
 
         // ? Emit lambda as a temporary chunk reference on the stack.
         self->chunk_idx = old_chunk_idx;
+
         compiler_emit_op_unflagged(self, op_load_imm_gid, lambda_chunk_idx);
+
+        // ? If the lambda is capturing, it's a closure which captures N copied local values above itself upon construction.
+        if (!ScalarVec_int_empty(&used_local_ids)) {
+            const int capture_count = ScalarVec_int_len(&used_local_ids);
+            
+            for (int local_capture_pos = 0; local_capture_pos < capture_count; local_capture_pos++) {
+                compiler_emit_op_unflagged(self, op_load_local, ScalarVec_int_get(&used_local_ids, local_capture_pos));
+            }
+
+            compiler_emit_op_unflagged(self, op_mk_closure, capture_count);
+        }
+
+        ScalarVec_int_del(&used_local_ids);
     }
 
     return hints;
