@@ -23,6 +23,7 @@ static const LexItem special_lexicals_v[] = {
     (LexItem) {.literal = "CATCH", .tag = tk_keyword_catch},
     (LexItem) {.literal = "ERR", .tag = tk_keyword_err},
     (LexItem) {.literal = "FUN", .tag = tk_keyword_fun},
+    (LexItem) {.literal = "USES", .tag = tk_keyword_uses},
     (LexItem) {.literal = "END", .tag = tk_keyword_end},
     (LexItem) {.literal = "ASSERT", .tag = tk_keyword_assert},
     (LexItem) {.literal = "?", .tag = tk_os_nullish},
