@@ -103,12 +103,20 @@ A very trivial scripting language implemented in C11. Only for educational purpo
       END
     END
   ```
+ - Add iterator support.
+    - Iterators only work on `ObjBase` types, holding a reference to them.
+    - Iterators have certain codes for actions:
+      - 0 -> check
+      - 1 -> peek
+      - 2 -> get & consume
+    - Library: `mkit` to create forward iterators.
  - Add list slicing.
   ```
     LET foo : [1, 2, 3, 4];
     LET partFoo : CUT [foo : 0 : 2];
   ```
- - Add iterators.
+ - Add bitwise NOT, AND, OR
+ - Add bit shifting.
 
 #### v0.14.x: QoL 6
  - Expand builtin library:
@@ -131,5 +139,4 @@ A very trivial scripting language implemented in C11. Only for educational purpo
       - `fwrite(fd, buf, n)`
 
 #### v0.15.x: QoL 7
- - Add `USE <relative path>` statements which import TBasic files.
  - Add the ability to generate standalone C files which bundle TBasic bytecode & the interpreter as an executable.
