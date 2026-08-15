@@ -12,27 +12,19 @@ typedef enum vm_vtag_t : uint8_t {
     vtag_bool,
     vtag_int,
     vtag_real,
-    vtag_strid,     // ? Holds an ID into an interned string pool.
-    vtag_obj_id        // ? Holds an ID into an object pool.
+    vtag_strid,         // ? Holds an ID into an interned string pool.
+    vtag_obj_id,        // ? Holds an ID into an object pool.
 } ValTag;
-
-// typedef enum vm_vflag_t : uint8_t {
-//     vflag_frozen = 0b00,
-//     vflag_writable = 0b01,
-//     vflag_configurable = 0b10,
-//     vflag_mutable = vflag_writable | vflag_configurable,
-// } ValFlag;
 
 typedef struct vm_value_t {
     union {
         int8_t byte;
         int16_t obj_id;
-        int i;          // ? This can be a 32-bit signed scalar / ID into a string or object pool.
+        int i;          // ? This can be a 32-bit signed scalar / ID into a string pool, object pool
         float f;
     } data;
 
     ValTag tag;
-    // ValFlag flags;
 } Value;
 
 static inline Value make_value_none() {

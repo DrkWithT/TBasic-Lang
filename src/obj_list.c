@@ -16,7 +16,8 @@ List *alloc_list(size_t initial_size) {
         .as_bool = list_as_bool_fn,
         .get_v = list_get_v_fn,
         .set_v = list_set_v_fn,
-        .display = list_display_fn
+        .display = list_display_fn,
+        .invoke = list_invoke
     };
 
     // ? 3: initialize a backing vector of Values to avoid accessing garbage data.
@@ -80,6 +81,10 @@ void list_display_fn(const void *self, const void *vm) {
     }
 
     fprintf(stdout, "\n");
+}
+
+uint8_t list_invoke(void *self, void *vm, Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc) {
+    return 0;
 }
 
 size_t list_len(const void *self) {

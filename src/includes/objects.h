@@ -3,9 +3,7 @@
 
 #include "value.h"
 
-
-
-#define DEFAULT_HEAP_CAPACITY ((int16_t) 256)
+#define DEFAULT_HEAP_CAPACITY ((int16_t) 512)
 #define DUD_HEAP_ID ((int16_t) -1)
 #define OBJECT_COST ((size_t) 64)
 
@@ -14,17 +12,24 @@
 #define STRING_PREPEND_KEY ((int) -1)
 #define STRING_COST OBJECT_COST
 
+
+
+// ? Forward declare Instruction for closure use.
+typedef struct code_vec_t Instruction;
+
 typedef enum obj_tag_t : uint8_t {
     otag_dud,
     otag_list,
     otag_string,
     otag_dict,
     otag_err,
+    otag_closure,
 } ObjTag;
 
 typedef enum obj_flags_t : uint8_t {
-    oflag_mutable = 0b0001,
-    oflag_iterable = 0b0010
+    oflag_mutable = 0b00000001,
+    oflag_iterable = 0b00000010,
+    oflag_callable = 0b00000100,
 } ObjFlag;
 
 // ? This stores type_info to discern how to downcast ObjBase --> List, etc.
@@ -41,6 +46,7 @@ typedef struct obj_base_t {
     Value (*get_v) (const void *self, Value key);
     int8_t (*set_v) (void *self, Value key, Value item);
     void (*display) (const void *self, const void *vm);
+    uint8_t (*invoke) (void *self, void *vm, Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc); // todo
 } ObjBase;
 
 typedef const ObjBase* ObjPtr;
