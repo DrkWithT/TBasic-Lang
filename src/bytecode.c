@@ -16,6 +16,7 @@ static const char *opcode_names[] = {
     "op_load_err_ref",
     "op_mk_list",
     "op_mk_dict",
+    "op_mk_closure",
     "op_get_idx",
     "op_set_idx",
     "op_chk_none",
