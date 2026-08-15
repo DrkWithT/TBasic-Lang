@@ -1,0 +1,8 @@
+`test bitwise XOR`
+
+`10 = 0b1010, 15 = 0b1111`
+LET a = 12, b = 15;
+
+ASSERT (a ^ b) == 5, "Expected 12 BITXOR 15 as 5.";
+
+RET TRUE;
