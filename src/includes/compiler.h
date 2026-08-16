@@ -41,7 +41,7 @@ void compiler_warn(Compiler *self, const char *msg, const Token *tk);
 size_t compiler_emit_op(Compiler *self, Opcode op);
 size_t compiler_emit_op_unflagged(Compiler *self, Opcode op, int16_t wide);
 size_t compiler_emit_op_flagged(Compiler *self, Opcode op, uint8_t flags, int16_t wide);
-void compiler_patch_reserve_inst(Compiler *self, const SymbolTable *scope);
+void compiler_patch_chunk_reserve_n(Compiler *self, SymbolTable *scope);
 void compiler_patch_debug_info(Compiler *self, charspan fn_name, uint16_t line, uint16_t col);
 
 SymbolTable *compiler_begin_local_scope(Compiler *self);

@@ -22,7 +22,6 @@ SymbolTable make_symbol_table() {
             .infos = temp_infos,
             .length = 0,
             .capacity = DEFAULT_SYMBOL_COUNT,
-            .var_alloc_ip = 0,
             .local_argc = 0,
             .next_local_id = 0,     // ? Start from BP since BP holds the callee... OLD + 1 --> new ID.
         };
@@ -32,7 +31,6 @@ SymbolTable make_symbol_table() {
         .infos = NULL,
         .length = 0,
         .capacity = 0,
-        .var_alloc_ip = 0,
         .local_argc = 0,
         .next_local_id = 0
     };
@@ -62,7 +60,6 @@ void SymbolTable_dud(SymbolTable *self) {
         self->capacity = 0;
     }
 
-    self->var_alloc_ip = 0;
     self->local_argc = 0;
     self->next_local_id = 0;
 }
@@ -82,7 +79,6 @@ void SymbolTable_copy(SymbolTable *dest, const SymbolTable *src) {
     dest->infos = src->infos;
     dest->length = src->length;
     dest->capacity = src->capacity;
-    dest->var_alloc_ip = src->var_alloc_ip;
     dest->local_argc = src->local_argc;
     dest->next_local_id = src->next_local_id;
 }

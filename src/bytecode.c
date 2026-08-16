@@ -4,7 +4,6 @@ static const char *opcode_names[] = {
     "nop",
     "op_put_none",
     "op_put_bool",
-    "op_reserve",
     "op_load_imm_gid",
     "op_load_local",
     "op_store_local",
@@ -82,6 +81,7 @@ void Chunk_dud(Chunk* c) {
         .line = 0,
         .col = 0
     };
+    c->local_slots = 0;
 }
 
 void Chunk_new(Chunk *c) {
@@ -95,6 +95,7 @@ void Chunk_new(Chunk *c) {
         .line = 0,
         .col = 0
     };
+    c->local_slots = 0;
 }
 
 void Chunk_copy(Chunk *c, const Chunk *other) {
@@ -134,6 +135,7 @@ void dump_program(const Program *pg) {
         const size_t temp_chunk_const_n = AnyVec_Value_len(&temp_chunk->constants);
         const size_t temp_chunk_code_n = AnyVec_Instruction_len(&temp_chunk->code);
 
+        printf("\tRESERVED: %d locals\n", temp_chunk->local_slots);
         puts("CONSTANTS:\n");
 
         for (size_t temp_chunk_const_id = 0; temp_chunk_const_id < temp_chunk_const_n; temp_chunk_const_id++) {
