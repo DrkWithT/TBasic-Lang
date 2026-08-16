@@ -25,7 +25,6 @@ static OpFunc opcode_handlers[] = {
     fn_nop,
     fn_put_none,
     fn_put_bool,
-    fn_reserve,
     fn_load_imm_gid,
     fn_load_local,
     fn_store_local,
@@ -121,17 +120,6 @@ VMStatus fn_put_bool(VMState *s, const Instruction *ip, const Value *cvp, Value 
 
     TAILCALL
     return dispatcher(s, ip, cvp, stack);
-}
-
-VMStatus fn_reserve(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
-    const uint16_t res_count = ip->wide;
-
-    s->sp += res_count;
-
-    ip++;
-
-    TAILCALL
-    return vm_dispatch(s, ip, cvp, stack);
 }
 
 VMStatus fn_load_imm_gid(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
@@ -871,8 +859,10 @@ VMStatus fn_call(VMState *s, const Instruction *ip, const Value *cvp, Value *sta
     const int callee_bp = s->sp - arg_count;
     const uint16_t caller_cid = s->chunk_id;
 
+    // ? Prepare caller stack & code tracking... Lazily increment the stack to allocate local space.
     s->bp = callee_bp;
     s->chunk_id = callee_ref->data.i;
+    s->sp += callee_chunk->local_slots;
 
     // ? For speed and simplicity, use the native stack to track recursion.
     s->depth++;

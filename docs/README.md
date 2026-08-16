@@ -103,7 +103,7 @@ A very trivial scripting language implemented in C11. Only for educational purpo
       END
     END
   ```
- - Add bitwise NOT, AND, OR, XOR, SHL, SHR
+ - Add bitwise NOT, AND, OR, XOR, SHL, SHR... Remove RESERVE opcode in favor of a chunk's non-parameter local count. **OK**
  - Add hexadecimal literals.
 
 #### v0.14.x: QoL 6
