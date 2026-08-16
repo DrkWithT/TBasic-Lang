@@ -10,4 +10,6 @@ WHILE data["i"] > 0:
     data["i"] := data["i"] - 1;
 END
 
-RET data["a"];
+ASSERT data["a"] == 12502500, "Expected 12502500 for 1 to 5K sum.";
+
+RET TRUE;

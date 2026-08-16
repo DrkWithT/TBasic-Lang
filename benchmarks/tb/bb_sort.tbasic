@@ -44,10 +44,6 @@ END
 
 LET count : 40, sample : makeNums(count);
 
-`print("RAW:");`
-`print(sample);`
-
-`print("SORTED:");`
 print(bbSort(sample, count));
 
 RET TRUE;
