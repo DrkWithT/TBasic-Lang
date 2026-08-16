@@ -30,6 +30,7 @@ typedef struct symbol_table_t {
     SymbolInfo *infos;
     int length;
     int capacity;
+    int var_alloc_ip;       // ? position to patch in RESERVE opcode
     int16_t local_argc;     // ? count of parameter locals
     int16_t next_local_id;      // ? reused for local IDs
     int16_t next_global_id;     // ? reused for global / constant IDs

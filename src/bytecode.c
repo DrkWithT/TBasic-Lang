@@ -4,6 +4,7 @@ static const char *opcode_names[] = {
     "nop",
     "op_put_none",
     "op_put_bool",
+    "op_reserve",
     "op_load_imm_gid",
     "op_load_local",
     "op_store_local",

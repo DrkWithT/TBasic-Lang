@@ -177,9 +177,12 @@ size_t compiler_emit_op_flagged(Compiler *self, Opcode op, uint8_t flags, int16_
     return AnyVec_Instruction_len(code_ref);
 }
 
-void compiler_patch_chunk_reserve_n(Compiler *self, SymbolTable *scope) {
-    Chunk *curr_bc = AnyVec_Chunk_getm(&self->pg.chunks, self->chunk_idx);
-    curr_bc->local_slots = scope->next_local_id - scope->local_argc;
+void compiler_patch_reserve_inst(Compiler *self, const SymbolTable *scope) {
+    const int reserver_ip = scope->var_alloc_ip;
+    const int16_t locals_from_params = scope->local_argc;
+
+    Chunk *current_chunk = AnyVec_Chunk_getm(&self->pg.chunks, self->chunk_idx);
+    current_chunk->code.data[reserver_ip].wide = scope->next_local_id - locals_from_params;
 }
 
 void compiler_patch_debug_info(Compiler *self, charspan fn_name, uint16_t line, uint16_t col) {
@@ -1650,12 +1653,15 @@ uint8_t compiler_do_func(Compiler *self, Lexer *lexer, CompHints hints) {
     }
     compiler_eat_tk(self, lexer);
 
+    func_scope->var_alloc_ip = 0;
+    compiler_emit_op_unflagged(self, op_reserve, 0);
+
     if (!compiler_do_block(self, lexer, hints)) {
         fprintf(stderr, "\tNote: See in FUN declaration around line %d.\n", self->curr.line);
         return cgen_dead;
     } else {
         compiler_emit_op_flagged(self, op_ret, TBASIC_RET_MARK_LAST, 0); // ! IMPORTANT: place function bytecode terminator for exceptions to heed, avoiding an OOB access.
-        compiler_patch_chunk_reserve_n(self, func_scope);
+        compiler_patch_reserve_inst(self, func_scope);
         compiler_patch_debug_info(self, name_lexeme, func_line, func_col);
 
         compiler_end_local_scope(self);
@@ -1798,6 +1804,9 @@ uint8_t compiler_do_lambda(Compiler *self, Lexer *lexer, CompHints hints) {
         }
     }
 
+    lambda_scope->var_alloc_ip = 0;
+    compiler_emit_op_unflagged(self, op_reserve, 0);
+
     if (!compiler_do_block(self, lexer, hints)) {
         ScalarVec_int_del(&used_local_ids);
         fprintf(stderr, "\tNote: See lambda body around line %d, col %d.\n", self->curr.line, self->curr.col);
@@ -1806,7 +1815,7 @@ uint8_t compiler_do_lambda(Compiler *self, Lexer *lexer, CompHints hints) {
         // ! IMPORTANT: Like `compiler_do_func`, place function bytecode terminator for exceptions to heed, avoiding an OOB access.
         compiler_emit_op_flagged(self, op_ret, TBASIC_RET_MARK_LAST, 0);
 
-        compiler_patch_chunk_reserve_n(self, lambda_scope);
+        compiler_patch_reserve_inst(self, lambda_scope);
         compiler_patch_debug_info(self, (charspan) {.data = "(lambda)", .length = 8}, fn_line, fn_col);
 
         compiler_end_local_scope(self);
@@ -1877,6 +1886,9 @@ Program compiler_do_source(Compiler *self, Lexer *lexer) {
     // ! IMPORTANT: push an initial top-level scope (not for superglobals) to avoid OOB scope stack accesses.
     SymbolTable *main_scope = compiler_begin_local_scope(self);
 
+    main_scope->var_alloc_ip = 0;
+    compiler_emit_op_unflagged(self, op_reserve, 0);
+
     while (!compiler_match_curr(self, tk_eof) && self->errors <= TBASIC_MAX_COMPILE_ERRORS) {
         CompHints checked_hints = compiler_do_stmt(self, lexer, initial_hints);
         if (checked_hints == cgen_dead) {
@@ -1897,7 +1909,7 @@ Program compiler_do_source(Compiler *self, Lexer *lexer) {
 
     // ! IMPORTANT: emit a redundant RET in case the user forgets one- otherwise the VM reads an invalid IP!
     compiler_emit_op_flagged(self, op_ret, TBASIC_RET_MARK_LAST, 0);
-    compiler_patch_chunk_reserve_n(self, main_scope);
+    compiler_patch_reserve_inst(self, main_scope);
     compiler_patch_debug_info(self, (charspan) {.data = "global", .length = 6}, 1, 1);
 
     compiler_end_local_scope(self);

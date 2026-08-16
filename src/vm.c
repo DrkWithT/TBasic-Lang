@@ -25,6 +25,7 @@ static OpFunc opcode_handlers[] = {
     fn_nop,
     fn_put_none,
     fn_put_bool,
+    fn_reserve,
     fn_load_imm_gid,
     fn_load_local,
     fn_store_local,
@@ -120,6 +121,15 @@ VMStatus fn_put_bool(VMState *s, const Instruction *ip, const Value *cvp, Value 
 
     TAILCALL
     return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_reserve(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    s->sp += ip->wide; // ? Lazy reserve local slots above CALLEE_BP.
+
+    ip++;
+
+    TAILCALL
+    return vm_dispatch(s, ip, cvp, stack);
 }
 
 VMStatus fn_load_imm_gid(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
