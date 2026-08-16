@@ -59,10 +59,16 @@ typedef enum vm_opcode_t : uint8_t {
     op_get_upv,       // ? ARGS: N; gets upvalue N.
     op_set_upv,       // ? ARGS: N; see `op_get_upv`.
     op_chk_none,      // ? checks if a value is NIL
+    op_bit_not,
     op_mul,
     op_div,
     op_add,
     op_sub,
+    op_bit_and,
+    op_bit_or,
+    op_bit_xor,
+    op_bit_shl,
+    op_bit_shr,
     op_eq,
     op_ne,
     op_lt,
@@ -109,6 +115,7 @@ typedef struct code_chunk_t {
     AnyVec_Instruction code;
     AnyVec_Value constants;
     ChunkDbgInfo info;
+    uint16_t local_slots;
 } Chunk;
 
 typedef struct vm_program_t {

@@ -93,30 +93,18 @@ A very trivial scripting language implemented in C11. Only for educational purpo
  - Add debug info per bytecode chunk e.g line & col per statement. **OK**
 
 #### v0.13.x: QoL 5
- - Add closures. **WIP**
+ - Add closures. **OK**
   ```
     FUN makeCounter(x, y):
-      RET FUN() USES (x, y):
-        x = x + y;
+      RET FUN() USES x, y:
+        x := x + y;
 
         RET x;
       END
     END
   ```
- - Add iterator support.
-    - Iterators only work on `ObjBase` types, holding a reference to them.
-    - Iterators have certain codes for actions:
-      - 0 -> check
-      - 1 -> peek
-      - 2 -> get & consume
-    - Library: `mkit` to create forward iterators.
- - Add list slicing.
-  ```
-    LET foo : [1, 2, 3, 4];
-    LET partFoo : CUT [foo : 0 : 2];
-  ```
- - Add bitwise NOT, AND, OR
- - Add bit shifting.
+ - Add bitwise NOT, AND, OR, XOR, SHL, SHR... Remove RESERVE opcode in favor of a chunk's non-parameter local count. **OK**
+ - Add hexadecimal literals.
 
 #### v0.14.x: QoL 6
  - Expand builtin library:
@@ -128,6 +116,7 @@ A very trivial scripting language implemented in C11. Only for educational purpo
       - `lsclr(list)` using native `__lsclr(list)`.
       - `lsmap(list, fn)`
       - `lsflt(list, fn)`
+      - `lscut(list, begin, len)`
       - `apply(fn, argv)` using native `__apply(fn, argv)`.
     - Add dict functions:
       - `dckeys(dict)` using native `__iterof(dict)`.

@@ -42,12 +42,8 @@ FUN bbSort(nums, len):
     RET nums;
 END
 
-LET count : 20, sample : makeNums(count);
+LET count : 40, sample : makeNums(count);
 
-print("RAW:");
-print(sample);
-
-print("SORTED:");
 print(bbSort(sample, count));
 
 RET TRUE;

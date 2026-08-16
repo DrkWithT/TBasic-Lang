@@ -22,10 +22,16 @@ static const char *opcode_names[] = {
     "op_get_upv",
     "op_set_upv",
     "op_chk_none",
+    "op_bit_not",
     "op_mul",
     "op_div",
     "op_add",
     "op_sub",
+    "op_bit_and",
+    "op_bit_or",
+    "op_bit_xor",
+    "op_bit_shl",
+    "op_bit_shr",
     "op_eq",
     "op_ne",
     "op_lt",
@@ -41,7 +47,6 @@ static const char *opcode_names[] = {
     "op_raise_err",
     "op_catch_err",
     "op_abort_if",
-
     "op_mul_kl",
     "op_div_kl",
     "op_add_kl",
@@ -77,6 +82,7 @@ void Chunk_dud(Chunk* c) {
         .line = 0,
         .col = 0
     };
+    c->local_slots = 0;
 }
 
 void Chunk_new(Chunk *c) {
@@ -90,6 +96,7 @@ void Chunk_new(Chunk *c) {
         .line = 0,
         .col = 0
     };
+    c->local_slots = 0;
 }
 
 void Chunk_copy(Chunk *c, const Chunk *other) {
@@ -129,6 +136,7 @@ void dump_program(const Program *pg) {
         const size_t temp_chunk_const_n = AnyVec_Value_len(&temp_chunk->constants);
         const size_t temp_chunk_code_n = AnyVec_Instruction_len(&temp_chunk->code);
 
+        printf("\tRESERVED: %d locals\n", temp_chunk->local_slots);
         puts("CONSTANTS:\n");
 
         for (size_t temp_chunk_const_id = 0; temp_chunk_const_id < temp_chunk_const_n; temp_chunk_const_id++) {

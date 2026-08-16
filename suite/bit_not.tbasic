@@ -1,0 +1,7 @@
+`test bitwise flip`
+
+LET a : -4;
+
+ASSERT ~a == 3, "Expected bitwise NOT of -4 as 3.";
+
+RET TRUE;

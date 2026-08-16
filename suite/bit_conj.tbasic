@@ -1,0 +1,9 @@
+`test bitwise AND, OR... may be broken`
+
+`15 = 0b1111, 9 = 0b1001`
+LET a : 15, b : 9;
+
+ASSERT (a & b) == 9, "Expected 15 BITAND 9 as 9.";
+ASSERT (a | b) == 15, "Expected 15 BITOR 9 as 15.";
+
+RET TRUE;

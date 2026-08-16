@@ -8,4 +8,6 @@ FUN fib(n):
     RET fib(n - 1) + fib(n - 2);
 END
 
-RET fib(30);
+ASSERT fib(30) == 832040, "Expected 832040 for recursive Fib 30";
+
+RET TRUE;

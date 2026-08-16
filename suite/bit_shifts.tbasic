@@ -1,0 +1,8 @@
+`test bitwise SHL and SHR`
+
+LET x : 6;
+
+ASSERT x >> 1 == 3, "Expected 6 >> 1 as 3.";
+ASSERT x << 1 == 12, "Expected 6 << 1 as 12.";
+
+RET TRUE;
