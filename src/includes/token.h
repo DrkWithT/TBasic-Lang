@@ -32,6 +32,8 @@ typedef enum token_tag_t {
     tk_true,
     tk_false,
     tk_integer,
+    tk_integer_hex,
+    tk_integer_bin,
     tk_real,
     tk_string,
     tk_os_nullish,

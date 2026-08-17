@@ -16,7 +16,7 @@
 #define CONFIG_DEFAULT_VM_HEAP_POPULATION 256
 #define TBASIC_VERSION_MAJOR 0
 #define TBASIC_VERSION_MINOR 13
-#define TBASIC_VERSION_PATCH 2
+#define TBASIC_VERSION_PATCH 3
 
 mystr read_file(const char *fname);
 

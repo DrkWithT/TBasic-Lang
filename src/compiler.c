@@ -5,6 +5,54 @@
 
 
 
+static inline int decode_bin(char c) {
+    if (c == '1') {
+        return 1;
+    }
+
+    return 0;
+}
+
+static inline int decode_hex(char c) {
+    if (c >= 'A' && c <= 'F') {
+        return (c - 'A') + 10;
+    } else if (c >= '0' && c <= '9') {
+        return c - '0';
+    }
+
+    return 0;
+}
+
+static int parse_base_hex(const charspan *s) {
+    const char *cstr_it = s->data + s->length - 1;
+    const char *cstr_end = s->data;
+    int result = 0;
+    int base = 1;
+
+    for (; cstr_it >= cstr_end; cstr_it--, base *= 16) {
+        const int digit_v = decode_hex(*cstr_it);
+
+        result += digit_v * base;
+    }
+
+    return result;
+}
+
+static int parse_base_bin(const charspan *s) {
+    const char *cstr_it = s->data + s->length - 1;
+    const char *cstr_end = s->data;
+    int result = 0;
+    int base = 1;
+
+    for (; cstr_it >= cstr_end; cstr_it--, base *= 2) {
+        const int digit_v = decode_bin(*cstr_it);
+
+        result += digit_v * base;
+    }
+
+    return result;
+}
+
 Compiler make_compiler() {
     AnyVec_SymbolTable local_scopes;
     AnyVec_SymbolTable_dud(&local_scopes);
@@ -453,12 +501,10 @@ uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, CompHints hints) {
         case tk_none:
             compiler_emit_op(self, op_put_none);
             compiler_eat_tk(self, lexer);
-
             return hints;
         case tk_true: case tk_false:
             compiler_emit_op_flagged(self, op_put_bool, curr_ref->tag == tk_true, 0);
             compiler_eat_tk(self, lexer);
-
             return hints;
         case tk_integer:
             temp_locus = compiler_record_constant(
@@ -467,7 +513,22 @@ uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, CompHints hints) {
                 make_value_int(charspan_atoi(&lexeme))
             );
             compiler_eat_tk(self, lexer);
-
+            break;
+        case tk_integer_hex:
+            temp_locus = compiler_record_constant(
+                self,
+                &lexeme,
+                make_value_int(parse_base_hex(&lexeme))
+            );
+            compiler_eat_tk(self, lexer);
+            break;
+        case tk_integer_bin:
+            temp_locus = compiler_record_constant(
+                self,
+                &lexeme,
+                make_value_int(parse_base_bin(&lexeme))
+            );
+            compiler_eat_tk(self, lexer);
             break;
         case tk_real:
             temp_locus = compiler_record_constant(
@@ -476,7 +537,6 @@ uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, CompHints hints) {
                 make_value_real(charspan_atof(&lexeme))
             );
             compiler_eat_tk(self, lexer);
-
             break;
         case tk_string:
             temp_locus = compiler_record_string(
@@ -484,12 +544,10 @@ uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, CompHints hints) {
                 &lexeme
             );
             compiler_eat_tk(self, lexer);
-
             break;
         case tk_keyword_err:
             compiler_eat_tk(self, lexer); // ? skip 'ERR'
             compiler_emit_op(self, op_load_err_ref);
-
             return hints;
         case tk_identifier:
             temp_locus = compiler_resolve_name(
@@ -497,7 +555,6 @@ uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, CompHints hints) {
                 &lexeme
             );
             compiler_eat_tk(self, lexer);
-
             break;
         case tk_lparen:
             compiler_eat_tk(self, lexer);
@@ -515,7 +572,6 @@ uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, CompHints hints) {
             }
 
             compiler_eat_tk(self, lexer);
-
             return hints;
         case tk_lbrack:
             return compiler_do_list(self, lexer, hints);
@@ -526,7 +582,6 @@ uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, CompHints hints) {
         default:
             compiler_warn(self, "Unexpected token in literal, expected none, true, false, or a name.", curr_ref);
             fprintf(stderr, "\tNote: See line %d, col %d.", self->curr.line, self->curr.col);
-
             return cgen_parse_err;
     }
 

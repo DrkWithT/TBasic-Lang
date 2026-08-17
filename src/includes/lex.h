@@ -31,6 +31,16 @@ static inline int8_t is_space_symbol(char c) {
     }
 }
 
+static inline int8_t is_hex_digit(char c) {
+    return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F');
+}
+
+static inline int8_t is_bin_digit(char c) {
+    return c == '0' || c == '1';
+}
+
+typedef int8_t(*LexFn)(char c);
+
 typedef struct lexical_item_t {
     const char *literal;
     TkTag tag;
@@ -57,6 +67,8 @@ Token lexer_lex_single(Lexer *self, TkTag tag, const charspan *s);
 Token lexer_lex_between(Lexer *self, TkTag tag, const charspan *s);
 
 Token lexer_lex_numeric(Lexer *self, const charspan *s);
+
+Token lexer_lex_based_int(Lexer *self, const charspan *s);
 
 Token lexer_lex_word(Lexer *self, const charspan *s);
 
