@@ -36,6 +36,7 @@ typedef enum token_tag_t {
     tk_integer_bin,
     tk_real,
     tk_string,
+    tk_escaped_str,
     tk_os_nullish,
     tk_os_nullcol,
     tk_os_bit_not,

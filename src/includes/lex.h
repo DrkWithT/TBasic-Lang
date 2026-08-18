@@ -10,6 +10,10 @@ static inline int8_t is_word_symbol(char c) {
     return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_';
 }
 
+static inline int8_t is_dec_digit(char c) {
+    return (c >= '0' && c <= '9');
+}
+
 static inline int8_t is_numeric_symbol(char c) {
     return (c >= '0' && c <= '9') || c == '.';
 }
@@ -65,6 +69,8 @@ Token lexer_lex_space(Lexer *self, const charspan *s);
 Token lexer_lex_single(Lexer *self, TkTag tag, const charspan *s);
 
 Token lexer_lex_between(Lexer *self, TkTag tag, const charspan *s);
+
+Token lexer_lex_escaped_str(Lexer *self, const charspan *s);
 
 Token lexer_lex_numeric(Lexer *self, const charspan *s);
 

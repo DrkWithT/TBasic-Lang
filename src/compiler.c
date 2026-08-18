@@ -327,6 +327,7 @@ const SymbolInfo *compiler_record_constant(Compiler *self, const charspan *s_sym
     return SymbolTable_push(curr_scope, &new_info);
 }
 
+// ? For recording non-escaped strings only.
 const SymbolInfo *compiler_record_string(Compiler *self, const charspan *s) {
     const SymbolInfo *pre_info = SymbolTable_find(&self->globals, s, symbol_string);
 
@@ -337,6 +338,82 @@ const SymbolInfo *compiler_record_string(Compiler *self, const charspan *s) {
     mystr str;
     mystr_res(&str, 10);
     mystr_append_charspan(&str, s, s->length);
+
+    SymbolInfo new_info = {
+        .name = (charspan) {
+            .data = str.data,
+            .length = str.length
+        },
+        .id = self->next_str_id,
+        .domain = symbol_string
+    };
+
+    self->next_str_id++;
+    AnyVec_mystr_push(&self->pg.strings, &str);
+
+    return SymbolTable_push(&self->globals, &new_info);
+}
+
+// ? For recording ASCII-escaped string literals only.
+const SymbolInfo *compiler_record_escaped_string(Compiler *self, const charspan *symbol) {
+    const SymbolInfo *pre_info = SymbolTable_find(&self->globals, symbol, symbol_string);
+
+    if (pre_info != NULL) {
+        return pre_info;
+    }
+
+    mystr str;
+    mystr_res(&str, 10);
+    const char *it = symbol->data;
+    const char *end = symbol->data + symbol->length;
+
+    while (it != end) {
+        char peek0 = *it;
+
+        if (peek0 != '\\') {
+            mystr_append_raw(&str, &peek0, 1);
+            it++;
+
+            continue;
+        } else {  
+            it++;
+        }
+
+        char peek1 = *it;
+        char converted_peek1;
+
+        if (peek1 == 'v') {
+            converted_peek1 = '\v';
+            mystr_append_raw(&str, &converted_peek1, 1);
+            it++;
+            continue;
+        } else if (peek1 == 'r') {
+            converted_peek1 = '\r';
+            mystr_append_raw(&str, &converted_peek1, 1);
+            it++;
+            continue;
+        } else if (peek1 == 'n') {
+            converted_peek1 = '\n';
+            mystr_append_raw(&str, &converted_peek1, 1);
+            it++;
+            continue;
+        } else if (peek1 == 't') {
+            converted_peek1 = '\t';
+            mystr_append_raw(&str, &converted_peek1, 1);
+            it++;
+            continue;
+        } else {
+            converted_peek1 = '\0';
+            it++; // ? Skip lexer pre-checked 'x'...
+        }
+
+        const char b0 = it[0], b1 = it[1]; // ? Decode HEX for ASCII sequence...
+        const char ascii_code = (char)((16 * decode_hex(b0)) + decode_hex(b1));
+
+        mystr_append_raw(&str, &ascii_code, 1);
+        it++;
+        it++;
+    }
 
     SymbolInfo new_info = {
         .name = (charspan) {
@@ -539,7 +616,8 @@ uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, CompHints hints) {
             compiler_eat_tk(self, lexer);
             break;
         case tk_string:
-            temp_locus = compiler_record_string(
+        case tk_escaped_str:
+            temp_locus = compiler_record_escaped_string(
                 self,
                 &lexeme
             );

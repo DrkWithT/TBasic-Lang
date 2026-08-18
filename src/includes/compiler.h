@@ -51,6 +51,7 @@ const SymbolInfo *compiler_record_function(Compiler *self, const charspan *symbo
 const SymbolInfo *compiler_record_local(Compiler *self, const charspan *symbol);
 const SymbolInfo *compiler_record_constant(Compiler *self_symbol, const charspan *symbol, Value v);
 const SymbolInfo *compiler_record_string(Compiler *self, const charspan *symbol);
+const SymbolInfo *compiler_record_escaped_string(Compiler *self, const charspan *symbol);
 uint8_t compiler_record_capture(Compiler *self, const charspan *symbol, int16_t curr_captures_n);
 
 ActiveLoop *compiler_enter_loop(Compiler *self);
