@@ -1,6 +1,8 @@
 #include <string.h>
 #include "lex.h"
 
+
+
 Lexer make_lexer(const charspan *s, const LexItem *special_array) {
     return (Lexer) {
         .specials = special_array,
@@ -97,6 +99,73 @@ Token lexer_lex_between(Lexer *self, TkTag tag, const charspan *s) {
     };
 }
 
+static int8_t lexer_lex_escape_seq(Lexer *self, const charspan *s) {
+    lexer_consume(self, '\\'); // skip checked '\';
+
+    const char peek0 = s->data[self->pos];
+    if (peek0 == 'v' || peek0 == 'r' || peek0 == 't' || peek0 == 'n') {
+        lexer_consume(self, peek0);
+        return 1;
+    } else if (peek0 == 'x') {
+        lexer_consume(self, peek0);
+    } else {
+        return 0;
+    }
+
+    const char peek1 = s->data[self->pos];
+    if (is_dec_digit(peek1)) {
+        lexer_consume(self, peek1);
+    } else {
+        return 0;
+    }
+
+    const char peek2 = s->data[self->pos];
+    if (is_dec_digit(peek2)) {
+        lexer_consume(self, peek2);
+    } else {
+        return 0;
+    }
+
+    return 1;
+}
+
+Token lexer_lex_escaped_str(Lexer *self, const charspan *s) {
+    const char delim = s->data[self->pos];
+    lexer_consume(self, delim);
+
+    const int tk_start = self->pos;
+    const uint16_t tk_line = self->line;
+    const uint16_t tk_col = self->col;
+    int8_t validated = 1;
+    int8_t escaped = 0;
+
+    while (!lexer_done(self)) {
+        const char peeked = s->data[self->pos];
+        if (peeked == delim) {
+            lexer_consume(self, peeked);
+            break;
+        } else if (peeked != '\\') {
+            lexer_consume(self, peeked);
+        } else if (!lexer_lex_escape_seq(self, s)) {
+            validated = 0;
+        } else {
+            escaped = 1;
+        }
+    }
+
+    return (Token) {
+        .begin = tk_start,
+        .length = self->pos - tk_start - 1,
+        .line = tk_line,
+        .col = tk_col,
+        .tag = validated
+            ? (escaped)
+                ? tk_escaped_str
+                : tk_string
+            : tk_unknown
+    };
+}
+
 Token lexer_lex_numeric(Lexer *self, const charspan *s) {
     const int tk_start = self->pos;
     const uint16_t tk_line = self->line;
@@ -139,6 +208,62 @@ Token lexer_lex_numeric(Lexer *self, const charspan *s) {
         .line = tk_line,
         .col = tk_col,
         .tag = temp_tag
+    };
+}
+
+Token lexer_lex_based_int(Lexer *self, const charspan *s) {
+    lexer_consume(self, s->data[self->pos]); // ? eat '#' prefix of BIN / HEX int literal.
+
+    LexFn predicate = NULL;
+    TkTag tk_tag = tk_unknown;
+
+    switch (s->data[self->pos]) {
+        case 'x':
+        case 'X':
+            predicate = is_hex_digit;
+            tk_tag = tk_integer_hex;
+            lexer_consume(self, s->data[self->pos]);
+            break;
+        case 'b':
+        case 'B':
+            predicate = is_bin_digit;
+            tk_tag = tk_integer_bin;
+            lexer_consume(self, s->data[self->pos]);
+            break;
+        default:
+            break;
+    }
+
+    if (predicate == NULL) {
+        return (Token) {
+            .begin = self->pos - 1,
+            .length = 2,
+            .line = self->line,
+            .col = self->col - 1,
+            .tag = tk_tag
+        };
+    }
+
+    const int tk_begin = self->pos;
+    const uint16_t tk_line = self->line;
+    const uint16_t tk_col = self->col;
+
+    while (!lexer_done(self)) {
+        const char c = s->data[self->pos];
+
+        if (predicate(c)) {
+            lexer_consume(self, c);
+        } else {
+            break;
+        }
+    }
+
+    return (Token) {
+        .begin = tk_begin,
+        .length = self->pos - tk_begin,
+        .line = tk_line,
+        .col = tk_col,
+        .tag = tk_tag
     };
 }
 
@@ -237,7 +362,8 @@ Token lexer_next(Lexer *self, const charspan *s) {
         case '{': return lexer_lex_single(self, tk_lbrace, s);
         case '}': return lexer_lex_single(self, tk_rbrace, s);
         case '`': return lexer_lex_between(self, tk_comment, s);
-        case '\"': return lexer_lex_between(self, tk_string, s);
+        case '\"': return lexer_lex_escaped_str(self, s);
+        case '#': return lexer_lex_based_int(self, s);
         default: break;
     }
 

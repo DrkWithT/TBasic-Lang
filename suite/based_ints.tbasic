@@ -1,0 +1,9 @@
+`test binary and hex integer literals`
+
+LET ans : 19, a : #b10011, b : #x13;
+
+ASSERT ans == 19, "Expected ans as 19.";
+ASSERT a == 19, "Expected a as 19.";
+ASSERT b == 19, "Expected b as 19.";
+
+RET TRUE;

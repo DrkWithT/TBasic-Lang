@@ -5,6 +5,54 @@
 
 
 
+static inline int decode_bin(char c) {
+    if (c == '1') {
+        return 1;
+    }
+
+    return 0;
+}
+
+static inline int decode_hex(char c) {
+    if (c >= 'A' && c <= 'F') {
+        return (c - 'A') + 10;
+    } else if (c >= '0' && c <= '9') {
+        return c - '0';
+    }
+
+    return 0;
+}
+
+static int parse_base_hex(const charspan *s) {
+    const char *cstr_it = s->data + s->length - 1;
+    const char *cstr_end = s->data;
+    int result = 0;
+    int base = 1;
+
+    for (; cstr_it >= cstr_end; cstr_it--, base *= 16) {
+        const int digit_v = decode_hex(*cstr_it);
+
+        result += digit_v * base;
+    }
+
+    return result;
+}
+
+static int parse_base_bin(const charspan *s) {
+    const char *cstr_it = s->data + s->length - 1;
+    const char *cstr_end = s->data;
+    int result = 0;
+    int base = 1;
+
+    for (; cstr_it >= cstr_end; cstr_it--, base *= 2) {
+        const int digit_v = decode_bin(*cstr_it);
+
+        result += digit_v * base;
+    }
+
+    return result;
+}
+
 Compiler make_compiler() {
     AnyVec_SymbolTable local_scopes;
     AnyVec_SymbolTable_dud(&local_scopes);
@@ -279,6 +327,7 @@ const SymbolInfo *compiler_record_constant(Compiler *self, const charspan *s_sym
     return SymbolTable_push(curr_scope, &new_info);
 }
 
+// ? For recording non-escaped strings only.
 const SymbolInfo *compiler_record_string(Compiler *self, const charspan *s) {
     const SymbolInfo *pre_info = SymbolTable_find(&self->globals, s, symbol_string);
 
@@ -289,6 +338,82 @@ const SymbolInfo *compiler_record_string(Compiler *self, const charspan *s) {
     mystr str;
     mystr_res(&str, 10);
     mystr_append_charspan(&str, s, s->length);
+
+    SymbolInfo new_info = {
+        .name = (charspan) {
+            .data = str.data,
+            .length = str.length
+        },
+        .id = self->next_str_id,
+        .domain = symbol_string
+    };
+
+    self->next_str_id++;
+    AnyVec_mystr_push(&self->pg.strings, &str);
+
+    return SymbolTable_push(&self->globals, &new_info);
+}
+
+// ? For recording ASCII-escaped string literals only.
+const SymbolInfo *compiler_record_escaped_string(Compiler *self, const charspan *symbol) {
+    const SymbolInfo *pre_info = SymbolTable_find(&self->globals, symbol, symbol_string);
+
+    if (pre_info != NULL) {
+        return pre_info;
+    }
+
+    mystr str;
+    mystr_res(&str, 10);
+    const char *it = symbol->data;
+    const char *end = symbol->data + symbol->length;
+
+    while (it != end) {
+        char peek0 = *it;
+
+        if (peek0 != '\\') {
+            mystr_append_raw(&str, &peek0, 1);
+            it++;
+
+            continue;
+        } else {  
+            it++;
+        }
+
+        char peek1 = *it;
+        char converted_peek1;
+
+        if (peek1 == 'v') {
+            converted_peek1 = '\v';
+            mystr_append_raw(&str, &converted_peek1, 1);
+            it++;
+            continue;
+        } else if (peek1 == 'r') {
+            converted_peek1 = '\r';
+            mystr_append_raw(&str, &converted_peek1, 1);
+            it++;
+            continue;
+        } else if (peek1 == 'n') {
+            converted_peek1 = '\n';
+            mystr_append_raw(&str, &converted_peek1, 1);
+            it++;
+            continue;
+        } else if (peek1 == 't') {
+            converted_peek1 = '\t';
+            mystr_append_raw(&str, &converted_peek1, 1);
+            it++;
+            continue;
+        } else {
+            converted_peek1 = '\0';
+            it++; // ? Skip lexer pre-checked 'x'...
+        }
+
+        const char b0 = it[0], b1 = it[1]; // ? Decode HEX for ASCII sequence...
+        const char ascii_code = (char)((16 * decode_hex(b0)) + decode_hex(b1));
+
+        mystr_append_raw(&str, &ascii_code, 1);
+        it++;
+        it++;
+    }
 
     SymbolInfo new_info = {
         .name = (charspan) {
@@ -453,12 +578,10 @@ uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, CompHints hints) {
         case tk_none:
             compiler_emit_op(self, op_put_none);
             compiler_eat_tk(self, lexer);
-
             return hints;
         case tk_true: case tk_false:
             compiler_emit_op_flagged(self, op_put_bool, curr_ref->tag == tk_true, 0);
             compiler_eat_tk(self, lexer);
-
             return hints;
         case tk_integer:
             temp_locus = compiler_record_constant(
@@ -467,7 +590,22 @@ uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, CompHints hints) {
                 make_value_int(charspan_atoi(&lexeme))
             );
             compiler_eat_tk(self, lexer);
-
+            break;
+        case tk_integer_hex:
+            temp_locus = compiler_record_constant(
+                self,
+                &lexeme,
+                make_value_int(parse_base_hex(&lexeme))
+            );
+            compiler_eat_tk(self, lexer);
+            break;
+        case tk_integer_bin:
+            temp_locus = compiler_record_constant(
+                self,
+                &lexeme,
+                make_value_int(parse_base_bin(&lexeme))
+            );
+            compiler_eat_tk(self, lexer);
             break;
         case tk_real:
             temp_locus = compiler_record_constant(
@@ -476,20 +614,18 @@ uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, CompHints hints) {
                 make_value_real(charspan_atof(&lexeme))
             );
             compiler_eat_tk(self, lexer);
-
             break;
         case tk_string:
-            temp_locus = compiler_record_string(
+        case tk_escaped_str:
+            temp_locus = compiler_record_escaped_string(
                 self,
                 &lexeme
             );
             compiler_eat_tk(self, lexer);
-
             break;
         case tk_keyword_err:
             compiler_eat_tk(self, lexer); // ? skip 'ERR'
             compiler_emit_op(self, op_load_err_ref);
-
             return hints;
         case tk_identifier:
             temp_locus = compiler_resolve_name(
@@ -497,7 +633,6 @@ uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, CompHints hints) {
                 &lexeme
             );
             compiler_eat_tk(self, lexer);
-
             break;
         case tk_lparen:
             compiler_eat_tk(self, lexer);
@@ -515,7 +650,6 @@ uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, CompHints hints) {
             }
 
             compiler_eat_tk(self, lexer);
-
             return hints;
         case tk_lbrack:
             return compiler_do_list(self, lexer, hints);
@@ -526,7 +660,6 @@ uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, CompHints hints) {
         default:
             compiler_warn(self, "Unexpected token in literal, expected none, true, false, or a name.", curr_ref);
             fprintf(stderr, "\tNote: See line %d, col %d.", self->curr.line, self->curr.col);
-
             return cgen_parse_err;
     }
 
@@ -1688,7 +1821,7 @@ uint8_t compiler_do_assert(Compiler *self, Lexer *lexer, CompHints hints) {
     }
     compiler_eat_tk(self, lexer);
 
-    if (!compiler_match_curr(self, tk_string)) {
+    if (!compiler_match_curr(self, tk_string) && !compiler_match_curr(self, tk_escaped_str)) {
         compiler_warn(self, "Expected a message string for an assertion here.", &self->curr);
         fprintf(stderr, "\tNote: See line %d, col %d.\n", self->curr.line, self->curr.col);
         return cgen_parse_err;

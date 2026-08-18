@@ -1,0 +1,7 @@
+`test escaped strings`
+
+LET strA : "ABC\r\n\t123", strB : "Test\x20Two";
+
+print(strA, strB);
+
+RET TRUE;
