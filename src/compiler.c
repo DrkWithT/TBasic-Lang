@@ -1821,7 +1821,7 @@ uint8_t compiler_do_assert(Compiler *self, Lexer *lexer, CompHints hints) {
     }
     compiler_eat_tk(self, lexer);
 
-    if (!compiler_match_curr(self, tk_string)) {
+    if (!compiler_match_curr(self, tk_string) && !compiler_match_curr(self, tk_escaped_str)) {
         compiler_warn(self, "Expected a message string for an assertion here.", &self->curr);
         fprintf(stderr, "\tNote: See line %d, col %d.\n", self->curr.line, self->curr.col);
         return cgen_parse_err;

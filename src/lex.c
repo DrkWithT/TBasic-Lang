@@ -159,7 +159,7 @@ Token lexer_lex_escaped_str(Lexer *self, const charspan *s) {
         .line = tk_line,
         .col = tk_col,
         .tag = validated
-            ? (tk_escaped_str)
+            ? (escaped)
                 ? tk_escaped_str
                 : tk_string
             : tk_unknown
