@@ -46,6 +46,7 @@ static const LexItem special_lexicals_v[] = {
     (LexItem) {.literal = "||", .tag = tk_os_or},
     (LexItem) {.literal = ":=", .tag = tk_os_bind_equals},
     (LexItem) {.literal = ":", .tag = tk_colon},
+    (LexItem) {.literal = NULL, .tag = tk_unknown}
 };
 
 IMPL_SCALAR_VEC(NativeFn)
