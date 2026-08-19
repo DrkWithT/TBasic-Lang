@@ -291,6 +291,7 @@ Token lexer_lex_word(Lexer *self, const charspan *s) {
 
         if (charspan_equals_raw(&lexeme, special_it->literal, tk_length)) {
             temp_tag = special_it->tag;
+            break;
         }
     }
 

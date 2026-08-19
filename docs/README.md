@@ -11,6 +11,10 @@ A very trivial scripting language implemented in C11. Only for educational purpo
    - Statically-linked binary: `./project.sh br`
    - Dynamically-linked demo binary (uses shared lib): `./project.sh sr`
 
+### Usage - Running
+   - Run `./build/tbasic -i` for the _debuggable_ binary.
+   - Run `./tbasic -i` for the _release_ binary. This is to keep a working release binary separate from the debug build.
+
 ### Basic Features
  - BASIC inspired but:
     - No line numbers or GOTO.

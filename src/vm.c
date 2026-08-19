@@ -194,7 +194,7 @@ VMStatus fn_put_k(VMState *s, const Instruction *ip, const Value *cvp, Value *st
 
 VMStatus fn_dup(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
     s->sp++;
-    stack[s->sp] = cvp[s->sp - 1];
+    stack[s->sp] = stack[s->sp - 1];
     ip++;
 
     TAILCALL
