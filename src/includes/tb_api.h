@@ -133,6 +133,9 @@ static inline int tbasic_run(const char *argv[], int argc, const charspan *nativ
     driver_bind_native(&app, (charspan) {.data = "creset", .length = 6}, native_console_reset);
     driver_bind_native(&app, (charspan) {.data = "stoi", .length = 4}, native_stoi);
     driver_bind_native(&app, (charspan) {.data = "stof", .length = 4}, native_stof);
+    driver_bind_native(&app, (charspan) {.data = "mkiter", .length = 6}, native_mkiter);
+    driver_bind_native(&app, (charspan) {.data = "mviter", .length = 6}, native_mviter);
+    driver_bind_native(&app, (charspan) {.data = "pkiter", .length = 6}, native_pkiter);
 
     if (n < 1) {
         n = 0;

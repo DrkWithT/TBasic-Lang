@@ -801,7 +801,8 @@ VMStatus fn_jmp_false(VMState *s, const Instruction *ip, const Value *cvp, Value
         require_truthy_pop = temp->data.f != 0.0f;
         break;
     case vtag_obj_id:
-        temp_as_obj = heap_get(&s->heap, (temp->tag == vtag_obj_id) ? temp->data.obj_id : -1); // ? Use polymorphic as_bool() call on the object ONLY IF it's legit... For safety reasons.
+        // ? Use polymorphic as_bool() call on the object if applicable, considering type safety.
+        temp_as_obj = heap_get(&s->heap, (temp->tag == vtag_obj_id) ? temp->data.obj_id : -1);
         require_truthy_pop = (temp_as_obj) ? temp_as_obj->as_bool(temp_as_obj) : 0;
         break;
     default:
@@ -822,24 +823,35 @@ VMStatus fn_jmp_false(VMState *s, const Instruction *ip, const Value *cvp, Value
 
 VMStatus fn_jmp_if(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
     const Value *temp = stack + s->sp;
+    ObjPtr temp_as_obj = NULL;
+    int8_t require_pop = 0;
 
     switch (temp->tag) {
-    case vtag_nil:
-        ip++;
-        break;
+    case vtag_nil: break;
     case vtag_bool:
-        ip += (temp->data.byte != 0) ? ip->wide : 1;
+        require_pop = temp->data.byte == 0;
         break;
     case vtag_int:
-        ip += (temp->data.i != 0) ? ip->wide : 1;
+        require_pop = temp->data.i == 0;
         break;
     case vtag_real:
-        ip += (temp->data.f != 0.0f) ? ip->wide : 1;
+        require_pop = temp->data.f == 0.0f;
+        break;
+    case vtag_obj_id:
+        // ? Use polymorphic as_bool() call on the object if applicable, considering type safety.
+        temp_as_obj = heap_get(&s->heap, (temp->tag == vtag_obj_id) ? temp->data.obj_id : -1);
+        require_pop = (temp_as_obj) ? !temp_as_obj->as_bool(temp_as_obj) : 1;
         break;
     default:
+        break;
+    }
+
+    // ? NOTE: IF temp == FALSE, POP it & advance to next evaluation. This works for short-circuiting of `temp_eval1 --> LHS && temp_eval2 --> RHS`.
+    if (require_pop) {
         s->sp--;
         ip++;
-        break;
+    } else {
+        ip += ip->wide;
     }
 
     TAILCALL

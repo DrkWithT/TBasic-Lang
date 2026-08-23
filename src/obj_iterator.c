@@ -48,10 +48,10 @@ Iter *alloc_iter_str(const ObjBase *obj, int16_t oid) {
         .iterate = iter_str_iterate_fn
     };
 
-    const String *temp_ls = (const String *)obj;
+    const String *temp_str = (const String *)obj;
 
-    temp->data.chr_p = temp_ls->data.data;
-    temp->end_p = temp_ls->data.data + temp_ls->data.length;
+    temp->data.chr_p = temp_str->data.data;
+    temp->end_p = temp_str->data.data + temp_str->data.length;
     temp->oid = oid;
     temp->tag = iter_t_str;
 

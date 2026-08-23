@@ -1649,6 +1649,8 @@ uint8_t compiler_do_expr_stmt(Compiler *self, Lexer *lexer, CompHints hints) {
             fprintf(stderr, "\tNote: see line %d\n", self->prev.line);
             return cgen_dead;
         }
+    } else {
+        compiler_emit_op_flagged(self, op_pop, 1, 0); // ? NOTE: pop unused temporary if needed.
     }
 
     if (!compiler_match_curr(self, tk_semicolon)) {
