@@ -28,4 +28,6 @@ void closure_display_fn(const void *self, const void *vm);
 
 uint8_t closure_invoke_fn(void *self, void *vm, const Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc);
 
+Value closure_iterate_fn(void* self, void *vm);
+
 #endif

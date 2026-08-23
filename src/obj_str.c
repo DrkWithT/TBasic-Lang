@@ -103,3 +103,7 @@ void string_display_fn(const void *self, const void *vm_state) {
 uint8_t string_invoke(void *self, void *vm, const Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc) {
     return 0;
 }
+
+Value str_iterate_fn(void *self, void *vm) {
+    return make_value_none(); // ? no-op
+}

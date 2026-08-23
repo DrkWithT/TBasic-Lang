@@ -65,3 +65,7 @@ void tberr_display_fn(const void *self, const void *vm) {
     printf("\x1b[1;31mError\x1b[0m at source ~ line \x1b[1;33m%d\x1b[0m:\n\tnote: ", self_as_err->line);
     print_value(&self_as_err->data, vm_state_p);
 }
+
+Value tberr_iterate_fn(void* self, void* vm) {
+    return make_value_none(); // ? no-op
+}

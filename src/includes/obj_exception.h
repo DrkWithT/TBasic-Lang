@@ -20,5 +20,6 @@ int8_t tberr_as_bool_fn(const void *self);
 Value tberr_get_v_fn(const void *self, Value key);
 int8_t tberr_set_v_fn(void *self, Value key, Value item);
 void tberr_display_fn(const void *self, const void *vm);
+Value tberr_iterate_fn(void* self, void *vm);
 
 #endif

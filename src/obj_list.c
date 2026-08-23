@@ -87,8 +87,6 @@ uint8_t list_invoke(void *self, void *vm, const Instruction *caller_ip, const Va
     return 0;
 }
 
-size_t list_len(const void *self) {
-    const List *list = (const List *)self;
-
-    return AnyVec_Value_len(&list->data);
+Value list_iterate_fn(void *self, void *vm) {
+    return make_value_none(); // ? no-op
 }

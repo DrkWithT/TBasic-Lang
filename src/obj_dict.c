@@ -219,3 +219,7 @@ void dict_display_fn(const void *self, MAYBE_UNUSED const void *vm) {
 uint8_t dict_invoke(void *self, void *vm, const Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc) {
     return 0;
 }
+
+Value dict_iterate_fn(void *self, void *vm) {
+    return make_value_none(); // ? no-op
+}
