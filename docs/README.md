@@ -112,9 +112,15 @@ A very trivial scripting language implemented in C11. Only for educational purpo
  - Add ASCII escapes in strings.
 
 #### v0.14.x: QoL 6
+ - Add iterators.
+    - `tb_iterator_t`: Semantics of a cursor through an object, allowing checking, peeking, and advancing.
+    - **NO** `chkiter` function- iterators are testable to a boolean.
+    - `mkiter(obj)`: creates iterator.
+    - `mviter(obj)`: advances iterator, returns false on end.
+    - `pkiter(obj)`: peeks current value of iterator.
  - Expand builtin library:
-    - Add `typeof` function:
-      - `typeof(val)`
+    - Add `tquery` function: Checks if something is mutable, indexable, etc.
+      - `tquery(val)`
     - Add list functions:
       - `lsrev(list)`
       - `lscat(dest, src)` using native `__lscat(dest, src)`.
@@ -123,8 +129,6 @@ A very trivial scripting language implemented in C11. Only for educational purpo
       - `lsflt(list, fn)`
       - `lscut(list, begin, len)`
       - `apply(fn, argv)` using native `__apply(fn, argv)`.
-    - Add dict functions:
-      - `dckeys(dict)` using native `__iterof(dict)`.
     - Add file stream functions:
       - `fopen(path, bitflags)`
       - `fclose(fd)`
