@@ -131,16 +131,20 @@ A very trivial scripting language implemented in C11. Only for educational purpo
       - `lsrev(list)`: returns true if a list is fed.
       - `lscat(dest, src)`: returns `dest` or NIL on success / failure.
       - `lsclr(list)`: returns true if a list is fed.
-      - `lsmap(list, fn)`: TODO
-      - `lsflt(list, fn)`: TODO
-      - `lscut(list, begin, len)`: returns a new sliced list if 
-      - `apply(fn, argv)` using native `__apply(fn, argv)`.
+      - `lscut(list, begin, len)`: returns a new sliced list with given bounds.
     - Add file stream functions:
-      - `fopen(path, bitflags)`
-      - `fclose(fd)`
-      - `fpeek(fd)`
-      - `fread(fd, buf, n)`
-      - `fwrite(fd, buf, n)`
+      - An `fs` object has the semantics of a tuple with `(hidden-filename, 0 => pos, 1 => hasErr, 2 => isEOF)`.
+      - `fopen(path, mode: int)`: returns an `fs` on success but `NIL` on failure.
+        - Modes:
+          - 0: "r"
+          - 1: "w"
+          - 2: "rb"
+          - 3: "wb"
+      - `fclose(fs)`: returns `TRUE` on success.
+      - `fgetc(fs)`: returns ASCII code as a 0-255 integer value but `NIL` on failure.
+      - `fputc(fs, ascii)`: returns `TRUE` on success.
+      - `fread(fs, buf, n)`: returns `n` for bytes successfully read but `-1` on failure.
+      - `fwrite(fs, buf, n)`: return `n` for bytes successfully written but `-1` on failure.
 
 #### v0.16.x: QoL 7
  - Add the ability to generate standalone C files which bundle TBasic bytecode & the interpreter as an executable.
