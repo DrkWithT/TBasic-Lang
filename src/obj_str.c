@@ -74,6 +74,10 @@ Value string_get_v_fn(const void *self, Value key) {
 int8_t string_set_v_fn(void *self, Value key, Value item) {
     StrMutPtr self_as_string = (StrMutPtr)self;
 
+    if (!object_base_flag_get(&self_as_string->base, oflag_mutable)) {
+        return 1;
+    }
+
     const int char_index = (key.tag == vtag_int) ? key.data.i : -1, last_index = self_as_string->data.length;
     const char temp_char = (item.tag == vtag_int) ? (char)(item.data.i) : '\0';
 

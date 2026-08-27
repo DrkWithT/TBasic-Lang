@@ -25,6 +25,7 @@ typedef enum obj_tag_t : uint8_t {
     otag_err,
     otag_closure,
     otag_iter,
+    otag_fs,
 } ObjTag;
 
 typedef enum obj_flags_t : uint8_t {

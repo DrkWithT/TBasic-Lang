@@ -9,7 +9,7 @@ List *alloc_list(size_t initial_size) {
         .meta = {
             .tag = otag_list,
             // TODO: use these flags for runtime mutability checks!
-            .flags = oflag_mutable | oflag_iterable
+            .flags = oflag_mutable
         },
         // ? 2: Let's bind the scuffed vtable at runtime.
         .del = list_del_fn,
@@ -52,6 +52,11 @@ Value list_get_v_fn(const void *self, Value key) {
 
 int8_t list_set_v_fn(void *self, Value key, Value item) {
     List *list_self = (List *)self;
+
+    if (!object_base_flag_get(&list_self->base, oflag_mutable)) {
+        return 1;
+    }
+
     const int index = (key.tag == vtag_int) ? key.data.i : -1;
     const int index_end = AnyVec_Value_len(&list_self->data);
 
