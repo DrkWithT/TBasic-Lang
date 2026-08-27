@@ -66,6 +66,6 @@ static inline void driver_set_flag(Driver *d, DriverFlag flag, int8_t arg) {
 
 void driver_bind_native(Driver *d, charspan name, NativeFn fn);
 Program driver_compile(Driver *d, const char *file_path);
-int driver_run(Driver *d, const char *file_path);
+int driver_run(Driver *d, const char *argv[], int argc);
 
 #endif

@@ -162,18 +162,36 @@ Program driver_compile(Driver *d, const char *file_path) {
     return program;
 }
 
-int driver_run(Driver *d, const char *file_path) {
-    if (driver_get_flag(d, dflag_info)) {
+int driver_run(Driver *d, const char *argv[], int argc) {
+    const char *source_path = "./main.tbasic";
+
+    for (int arg_pos = 0; arg_pos < argc - 1; arg_pos++) {
+        if (strcmp(argv[1 + arg_pos], "-i") == 0) {
+            driver_set_flag(d, dflag_info, 1);
+        } else if (strcmp(argv[1 + arg_pos], "-d") == 0) {
+            driver_set_flag(d, dflag_dis_bc, 1);
+        } else if (strcmp(argv[1 + arg_pos], "-r") == 0) {
+            driver_set_flag(d, dflag_run_bc, 1);
+        } else if (driver_get_flag(d, dflag_dis_bc) || driver_get_flag(d, dflag_run_bc)) {
+            source_path = argv[1 + arg_pos];
+            break;
+        } else {
+            driver_set_flag(d, dflag_invalid_opts, 1);
+            break;
+        }
+    }
+
+    if (driver_get_flag(d, dflag_info) || driver_get_flag(d, dflag_invalid_opts)) {
         printf(
             "\x1b[1;36m%s\x1b[0m\n\x1b[1;29mv%d.%d.%d\x1b[0m  \x1b[1;30m---\x1b[0m  \x1b[1;29mDrkWithT (GitHub)\x1b[0m\n",
             d->config.title,
             d->config.version_major, d->config.version_minor, d->config.version_patch
         );
         printf("usage: ./tbasic [-i | [-d | -r] <file name>]\n\t-i: show usage and version\n\t-d: display bytecode\n\t-r: run script\n");
-        return 0;
+        return driver_get_flag(d, dflag_invalid_opts) ? 1 : 0;
     }
 
-    Program code = driver_compile(d, file_path);
+    Program code = driver_compile(d, source_path);
 
     if (code.entry_id == TBASIC_PG_MARK_INVALID) {
         driver_set_flag(d, dflag_invalid_opts, 1);
