@@ -233,7 +233,7 @@ VMStatus native_fread(VMState *s) {
     const int callee_bp = s->bp;
     const Value fs_arg = s->stack[callee_bp + 1];
     const Value dest_arg = s->stack[callee_bp + 2];
-    const Value rc_arg = s->stack[callee_bp + 2];
+    const Value rc_arg = s->stack[callee_bp + 3];
 
     if (fs_arg.tag != vtag_obj_id || dest_arg.tag != vtag_obj_id || rc_arg.tag != vtag_int) {
         s->sp++;
@@ -274,7 +274,7 @@ VMStatus native_fwrite(VMState *s) {
     const int callee_bp = s->bp;
     const Value fs_arg = s->stack[callee_bp + 1];
     const Value src_arg = s->stack[callee_bp + 2];
-    const Value rc_arg = s->stack[callee_bp + 2];
+    const Value rc_arg = s->stack[callee_bp + 3];
 
     if (fs_arg.tag != vtag_obj_id || src_arg.tag != vtag_obj_id || rc_arg.tag != vtag_int) {
         s->sp++;
@@ -301,9 +301,9 @@ VMStatus native_fwrite(VMState *s) {
     int done_wc = 0;
 
     for (; fs_object_ptr->as_bool(fs_object_ptr) && wc > 0; wc--, done_wc++) {
-        const Value *c_code = src_buf->data.data + wc;
+        const Value *c_code = src_buf->data.data + done_wc;
 
-        if (c_code->tag == vtag_int) {   
+        if (c_code->tag == vtag_int) {
             fputc(c_code->data.i, fs->f);
         } else {
             fprintf(stderr, "\x1b[1;33mWARNING:\x1b[0m ~ tb_io_stdlib.c, native_fwrite():\nInvalid value at position %d, stopped on non-integer.\n", wc);

@@ -94,9 +94,12 @@ VMStatus native_lsclr(VMState *s) {
 
     if (obj_is_valid) {
         List *list_ptr = (List *)list_ref;
+        const size_t list_length = list_ptr->data.length;
 
-        // ! Here, lazy delete items to save allocated buffer... the GC will reclaim the unreachable object references.
-        list_ptr->data.length = 0;
+        // ! Here, lazy unset each item...
+        for (size_t list_pos = 0; list_pos < list_length; list_pos++) {
+            list_ptr->data.data[list_pos].tag = vtag_nil;
+        }
     }
 
     s->sp++;
@@ -130,7 +133,7 @@ VMStatus native_lscut(VMState *s) {
     const size_t slice_base = arg_begin.data.i;
     const size_t slice_length = arg_len.data.i;
 
-    if (slice_base + slice_length >= src_list->data.length) {
+    if (slice_base + slice_length > src_list->data.length) {
         s->sp++;
         s->stack[s->sp] = make_value_none();
 

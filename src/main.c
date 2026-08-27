@@ -21,7 +21,6 @@ const charspan builtin_names[] = {
     (charspan) {.data = "pkiter", .length = 6},
     (charspan) {.data = "thaw", .length = 4},
     (charspan) {.data = "freeze", .length = 6},
-    // todo: impl. and add dict utils...
     (charspan) {.data = "lsrev", .length = 5},
     (charspan) {.data = "lscat", .length = 5},
     (charspan) {.data = "lsclr", .length = 5},
@@ -29,6 +28,12 @@ const charspan builtin_names[] = {
     (charspan) {.data = "creadln", .length = 7},
     (charspan) {.data = "creset", .length = 6},
     (charspan) {.data = "print", .length = 5},
+    (charspan) {.data = "fopen", .length = 5},
+    (charspan) {.data = "fclose", .length = 6},
+    (charspan) {.data = "fgetc", .length = 5},
+    (charspan) {.data = "fputc", .length = 5},
+    (charspan) {.data = "fread", .length = 5},
+    (charspan) {.data = "fwrite", .length = 6},
 };
 
 /**
@@ -52,7 +57,6 @@ const NativeFn builtin_funcs[] = {
     native_pkiter,
     native_thaw,
     native_freeze,
-    // todo: impl. and add dict utils...
     native_lsrev,
     native_lscat,
     native_lsclr,
@@ -60,6 +64,12 @@ const NativeFn builtin_funcs[] = {
     native_console_readln,
     native_console_reset,
     native_print,
+    native_fopen,
+    native_fclose,
+    native_fgetc,
+    native_fputc,
+    native_fread,
+    native_fwrite,
 };
 
 int main(int argc, const char *argv[]) {
