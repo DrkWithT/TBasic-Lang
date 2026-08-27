@@ -118,7 +118,7 @@ A very trivial scripting language implemented in C11. Only for educational purpo
     - `mkiter(obj)`: creates iterator.
     - `mviter(obj)`: advances iterator, returns false on end.
     - `pkiter(obj)`: peeks current value of iterator.
- - Expand builtin library:
+ - Expand builtin library: **v0.15.0**
     - Add `thaw` function:
       - Args: an object reference
       - Sets the object's mutable flag to `TRUE`.
@@ -142,8 +142,8 @@ A very trivial scripting language implemented in C11. Only for educational purpo
       - `fread(fd, buf, n)`
       - `fwrite(fd, buf, n)`
 
-#### v0.15.x: QoL 7
+#### v0.16.x: QoL 7
  - Add the ability to generate standalone C files which bundle TBasic bytecode & the interpreter as an executable.
 
-#### v0.16.x: QoL 8
+#### v0.17.x: QoL 8
  - Add [macro system](/docs/macros.md).
