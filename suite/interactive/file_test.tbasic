@@ -1,0 +1,15 @@
+`test basic file I/O`
+
+`see docs for the fopen flags`
+LET path : "./dump.txt", WRITE_MODE : 2, fs : NIL;
+
+fs := fopen(path, WRITE_MODE);
+
+ASSERT ?fs == FALSE, "Could not open the file!";
+
+`write "1 2 3\n"`
+ASSERT fwrite(fs, [49, 32, 50, 32, 51, 10], 6) == 6, "Failed to write all text!";
+
+ASSERT fclose(fs), "Failed to close the file!";
+
+RET TRUE;

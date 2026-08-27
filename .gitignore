@@ -6,6 +6,7 @@
 build/
 tb_lib/
 bc_dump.txt
+dump.txt
 compile_commands.json
 prof*.json
 tbasic

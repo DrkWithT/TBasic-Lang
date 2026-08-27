@@ -1,0 +1,27 @@
+`test list functions`
+
+LET foo : [1, 2, 3], bar : [4, 5, 6], baz : NIL, blah : NIL;
+
+lsrev(foo);
+
+`should print 3 2 1`
+print(foo);
+
+`test list clone idiom`
+baz := lscat([], bar);
+
+`should print [4 5 6] 2x`
+print("bar [", bar, "]\nbaz [", baz, "]");
+
+lsclr(baz);
+baz[0] := 42;
+
+`should print 42`
+print(baz);
+
+blah := lscut(foo, 0, 2);
+
+`should print 3 2`
+print(blah);
+
+RET TRUE;

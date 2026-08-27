@@ -109,7 +109,7 @@ A very trivial scripting language implemented in C11. Only for educational purpo
   ```
  - Add bitwise NOT, AND, OR, XOR, SHL, SHR... Remove RESERVE opcode in favor of a chunk's non-parameter local count. **OK**
  - Add binary / hexadecimal literals. **OK**
- - Add ASCII escapes in strings.
+ - Add ASCII escapes in strings. **OK**
 
 #### v0.14.x: QoL 6
  - Add iterators.
@@ -137,8 +137,8 @@ A very trivial scripting language implemented in C11. Only for educational purpo
       - `fopen(path, mode: int)`: returns an `fs` on success but `NIL` on failure.
         - Modes:
           - 0: "r"
-          - 1: "w"
-          - 2: "rb"
+          - 1: "rb"
+          - 2: "w"
           - 3: "wb"
       - `fclose(fs)`: returns `TRUE` on success.
       - `fgetc(fs)`: returns ASCII code as a 0-255 integer value but `NIL` on failure.
@@ -147,7 +147,12 @@ A very trivial scripting language implemented in C11. Only for educational purpo
       - `fwrite(fs, buf, n)`: return `n` for bytes successfully written but `-1` on failure.
 
 #### v0.16.x: QoL 7
- - Add the ability to generate standalone C files which bundle TBasic bytecode & the interpreter as an executable.
+ - Make top-level declarations global by default.
+ - Add diagnostic annotations:
+    - `@DOC "This function sorts all items using a predicate."`
+    - `@WARN "This function is too error prone.")`
+    - `@PROHIBIT "This function may crash often! Do not use it!"`
 
 #### v0.17.x: QoL 8
+ - Add the ability to generate standalone C files which bundle TBasic bytecode & the interpreter as an executable.
  - Add [macro system](/docs/macros.md).
