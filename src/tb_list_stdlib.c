@@ -105,10 +105,6 @@ VMStatus native_lsclr(VMState *s) {
     return vm_status_pending;
 }
 
-// VMStatus native_lsmap(VMState *s); // todo
-
-// VMStatus native_lsflt(VMState *s); // todo
-
 VMStatus native_lscut(VMState *s) {
     const Value arg = s->stack[s->bp + 1];
     const Value arg_begin = s->stack[s->bp + 2];
@@ -162,6 +158,7 @@ VMStatus native_lscut(VMState *s) {
     if (reserved_obj_id != DUD_HEAP_ID) {
         s->stack[s->sp] = make_value_obj(reserved_obj_id);
     } else {
+        result_ref->del(result_ref);
         free(result_ref);
         s->stack[s->sp] = make_value_none(); 
     }

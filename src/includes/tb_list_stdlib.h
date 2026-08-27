@@ -11,10 +11,6 @@ VMStatus native_lscat(VMState *s);
 
 VMStatus native_lsclr(VMState *s);
 
-// VMStatus native_lsmap(VMState *s); // todo: polyfill??
-
-// VMStatus native_lsflt(VMState *s); // todo: polyfill??
-
 VMStatus native_lscut(VMState *s);
 
 #endif
