@@ -119,15 +119,21 @@ A very trivial scripting language implemented in C11. Only for educational purpo
     - `mviter(obj)`: advances iterator, returns false on end.
     - `pkiter(obj)`: peeks current value of iterator.
  - Expand builtin library:
-    - Add `tquery` function: Checks if something is mutable, indexable, etc.
-      - `tquery(val)`
+    - Add `thaw` function:
+      - Args: an object reference
+      - Sets the object's mutable flag to `TRUE`.
+      - Returns `FALSE` on non-objects.
+    - Add `freeze` function:
+      - Args: an object reference
+      - Sets the object's mutable flag to `FALSE`, disallowing mutation of any kind.
+      - Returns `FALSE` for non-objects.
     - Add list functions:
-      - `lsrev(list)`
-      - `lscat(dest, src)` using native `__lscat(dest, src)`.
-      - `lsclr(list)` using native `__lsclr(list)`.
-      - `lsmap(list, fn)`
-      - `lsflt(list, fn)`
-      - `lscut(list, begin, len)`
+      - `lsrev(list)`: returns true if a list is fed.
+      - `lscat(dest, src)`: returns `dest` or NIL on success / failure.
+      - `lsclr(list)`: returns true if a list is fed.
+      - `lsmap(list, fn)`: TODO
+      - `lsflt(list, fn)`: TODO
+      - `lscut(list, begin, len)`: returns a new sliced list if 
       - `apply(fn, argv)` using native `__apply(fn, argv)`.
     - Add file stream functions:
       - `fopen(path, bitflags)`
@@ -138,3 +144,6 @@ A very trivial scripting language implemented in C11. Only for educational purpo
 
 #### v0.15.x: QoL 7
  - Add the ability to generate standalone C files which bundle TBasic bytecode & the interpreter as an executable.
+
+#### v0.16.x: QoL 8
+ - Add [macro system](/docs/macros.md).

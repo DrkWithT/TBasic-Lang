@@ -35,7 +35,10 @@ if (DEFINED CREATE_TBASIC_SHARED)
         "${PROJECT_SOURCES}/compiler.c"
         "${PROJECT_SOURCES}/optimizer.c"
         "${PROJECT_SOURCES}/vm.c"
-        "${PROJECT_SOURCES}/natives.c"
+        "${PROJECT_SOURCES}/tb_gen_stdlib.c"
+        "${PROJECT_SOURCES}/tb_obj_stdlib.c"
+        "${PROJECT_SOURCES}/tb_list_stdlib.c"
+        "${PROJECT_SOURCES}/tb_io_stdlib.c"
         "${PROJECT_SOURCES}/driver.c"
         "${PROJECT_SOURCES}/load_bc.c"
     )
@@ -66,7 +69,10 @@ else ()
         "${PROJECT_SOURCES}/compiler.c"
         "${PROJECT_SOURCES}/optimizer.c"
         "${PROJECT_SOURCES}/vm.c"
-        "${PROJECT_SOURCES}/natives.c"
+        "${PROJECT_SOURCES}/tb_gen_stdlib.c"
+        "${PROJECT_SOURCES}/tb_obj_stdlib.c"
+        "${PROJECT_SOURCES}/tb_list_stdlib.c"
+        "${PROJECT_SOURCES}/tb_io_stdlib.c"
         "${PROJECT_SOURCES}/driver.c"
         "${PROJECT_SOURCES}/load_bc.c"
     )
