@@ -21,7 +21,8 @@ static const uint8_t add_two_bc[] = {
 int main() {
     Program demo_pg = tbasic_deserialize_prgm(add_two_bc, sizeof(add_two_bc));
 
-    Driver tbasic_instance = tbasic_make_driver(NULL, NULL, 0, &demo_pg);
+    // ! FIXME: make tbasic_invoke work on a Program reference!
+    Driver tbasic_instance = tbasic_make_driver(NULL, NULL, 0);
 
     // ? SUM 11 and 31: This must be 42.
     const Value test_args_1[] = {
