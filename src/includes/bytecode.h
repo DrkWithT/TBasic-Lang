@@ -47,7 +47,8 @@ typedef enum vm_opcode_t : uint8_t {
     op_set_gvar,        // ? Args: <global-var-offset>; Pops off a stack temporary and sets stack[0 + GVAR_OFFSET].
     op_load_local,
     op_store_local,
-    op_bind_lstmp,      // ? Args: <local-ID>, takes a referenced list and index int, binding that indexed temporary to a local by ID.
+    op_bind_lstmp,      // ? Args: <local-ID>; takes a referenced list and index int, binding that indexed temporary to a local by ID.
+    op_gbind_lstmp,     // ? Args: <global-var-ID>; takes a referenced list and index int, binding that indexed temporary to a global variable by ID.
     op_put_k,
     op_dup,
     op_pop,

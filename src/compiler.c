@@ -1290,7 +1290,12 @@ uint8_t compiler_do_binding(Compiler *self, Lexer *lexer, CompHints hints) {
             .data = self->s.data + self->curr.begin,
             .length = self->curr.length
         };
-        const SymbolInfo *local_info = compiler_record_local(self, &bound_name);
+        const SymbolInfo *bind_var_info = (AnyVec_SymbolTable_len(&self->locals) > 1)
+            ? compiler_record_local(self, &bound_name)
+            : compiler_record_global_var(self, &bound_name);
+        const Opcode temp_binding_opcode = (AnyVec_SymbolTable_len(&self->locals) > 1)
+            ? op_bind_lstmp
+            : op_gbind_lstmp;
 
         compiler_eat_tk(self, lexer); // ? Here, consume a name after tracking its identifier...
 
@@ -1298,7 +1303,7 @@ uint8_t compiler_do_binding(Compiler *self, Lexer *lexer, CompHints hints) {
             compiler_eat_tk(self, lexer);
         }
 
-        compiler_emit_op_flagged(self, op_bind_lstmp, list_src_pos, local_info->id);
+        compiler_emit_op_flagged(self, temp_binding_opcode, list_src_pos, bind_var_info->id);
         list_src_pos++;
     }
     compiler_eat_tk(self, lexer);

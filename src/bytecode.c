@@ -11,6 +11,7 @@ static const char *opcode_names[] = {
     "op_load_local",
     "op_store_local",
     "op_bind_lstmp",
+    "op_global_bind_lstmp",
     "op_put_konst",
     "op_dup",
     "op_pop",
