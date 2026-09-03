@@ -112,13 +112,13 @@ A very trivial scripting language implemented in C11. Only for educational purpo
  - Add ASCII escapes in strings. **OK**
 
 #### v0.14.x: QoL 6
- - Add iterators.
+ - Add iterators. **OK**
     - `tb_iterator_t`: Semantics of a cursor through an object, allowing checking, peeking, and advancing.
     - **NO** `chkiter` function- iterators are testable to a boolean.
     - `mkiter(obj)`: creates iterator.
     - `mviter(obj)`: advances iterator, returns false on end.
     - `pkiter(obj)`: peeks current value of iterator.
- - Expand builtin library: **v0.15.0**
+ - Expand builtin library: **OK**
     - Add `thaw` function:
       - Args: an object reference
       - Sets the object's mutable flag to `TRUE`.
@@ -147,11 +147,10 @@ A very trivial scripting language implemented in C11. Only for educational purpo
       - `fwrite(fs, buf, n)`: return `n` for bytes successfully written but `-1` on failure.
 
 #### v0.16.x: QoL 7
- - Make top-level declarations global by default.
+ - Make top-level declarations global by default. **OK**
  - Add diagnostic annotations:
     - `@DOC "This function sorts all items using a predicate."`
     - `@WARN "This function is too error prone.")`
-    - `@PROHIBIT "This function may crash often! Do not use it!"`
 
 #### v0.17.x: QoL 8
  - Add the ability to generate standalone C files which bundle TBasic bytecode & the interpreter as an executable.
