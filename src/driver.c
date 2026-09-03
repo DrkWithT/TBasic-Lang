@@ -198,9 +198,10 @@ int driver_run(Driver *d, const char *argv[], int argc) {
         return 1;
     }
 
-    // TODO: add usage of other driver flags: dump / run bytecode files?
     if (driver_get_flag(d, dflag_dis_bc)) {
         dump_program(&code);
+        program_del(&code);
+        return 0;
     }
 
     if (!driver_get_flag(d, dflag_run_bc)) {
