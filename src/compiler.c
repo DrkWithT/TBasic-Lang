@@ -256,9 +256,14 @@ void compiler_end_local_scope(Compiler *self) {
 }
 
 const SymbolInfo *compiler_resolve_name(const Compiler *self, const charspan *s) {
-    const SymbolInfo *temp = SymbolTable_find(&self->globals, s, symbol_func);
-    if (temp != NULL) {
-        return temp;
+    const SymbolInfo *maybe_global_func = SymbolTable_find(&self->globals, s, symbol_func);
+    if (maybe_global_func != NULL) {
+        return maybe_global_func;
+    }
+
+    const SymbolInfo *maybe_global_var = SymbolTable_find(AnyVec_SymbolTable_get(&self->locals, 0), s, symbol_global_var);
+    if (maybe_global_var != NULL) {
+        return maybe_global_var;
     }
 
     const SymbolTable *curr_scope = AnyVec_SymbolTable_last(&self->locals);
@@ -286,6 +291,25 @@ const SymbolInfo *compiler_record_function(Compiler *self, const charspan *s, in
     return SymbolTable_push(&self->globals, &new_info);
 }
 
+const SymbolInfo *compiler_record_global_var(Compiler *self, const charspan *s) {
+    SymbolTable *global_var_table = AnyVec_SymbolTable_getm(&self->locals, 0);
+    const SymbolInfo *maybe_global = SymbolTable_find(global_var_table, s, symbol_global_var);
+
+    if (maybe_global != NULL && maybe_global->domain == symbol_global_var) {
+        return maybe_global;
+    }
+
+    SymbolInfo global_var_info = {
+        .name = *s,
+        .id = global_var_table->next_local_id,
+        .domain = symbol_global_var
+    };
+
+    global_var_table->next_local_id++;
+
+    return SymbolTable_push(global_var_table, &global_var_info);
+}
+
 const SymbolInfo *compiler_record_local(Compiler *self, const charspan *s) {
     SymbolTable *curr_scope = AnyVec_SymbolTable_lastm(&self->locals);
 
@@ -308,6 +332,7 @@ const SymbolInfo *compiler_record_local(Compiler *self, const charspan *s) {
 const SymbolInfo *compiler_record_constant(Compiler *self, const charspan *s_symbol, Value v) {
     SymbolTable *curr_scope = AnyVec_SymbolTable_lastm(&self->locals);
     const SymbolInfo *result = SymbolTable_find(curr_scope, s_symbol, symbol_constant);
+
     if (result != NULL && result->domain == symbol_constant) {
         return result;
     }
@@ -678,6 +703,9 @@ uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, CompHints hints) {
         } else if (temp_locus->domain == symbol_upval) {
             hints |= cgen_lhs_upval;
             self->saved_info = *temp_locus;
+        } else if (temp_locus->domain == symbol_global_var) {
+            hints |= cgen_lhs_global;
+            self->saved_info = *temp_locus;
         }
 
         return hints;
@@ -699,6 +727,9 @@ uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, CompHints hints) {
             break;
         case symbol_upval:
             compiler_emit_op_unflagged(self, op_get_upv, temp_locus->id);
+            break;
+        case symbol_global_var:
+            compiler_emit_op_unflagged(self, op_get_gvar, temp_locus->id);
             break;
         default:
             break;
@@ -722,6 +753,8 @@ uint8_t compiler_do_lhs(Compiler *self, Lexer *lexer, CompHints hints) {
 
     if (compile_hints_check_flag(target_hints, cgen_lhs_local)) {
         compiler_emit_op_flagged(self, op_load_local, 0, dest_info.id);
+    } else if (compile_hints_check_flag(target_hints, cgen_lhs_global)) {
+        compiler_emit_op_unflagged(self, op_get_gvar, dest_info.id);
     }
 
     CompHints access_hints = target_hints;
@@ -1187,7 +1220,13 @@ uint8_t compiler_do_vars(Compiler *self, Lexer *lexer, CompHints hints) {
 
         compiler_eat_tk(self, lexer);
 
-        const SymbolInfo *var_locus = compiler_record_local(self, &raw_name);
+        // ! IMPORTANT: top-level vars are global.
+        const SymbolInfo *var_locus = (AnyVec_SymbolTable_len(&self->locals) > 1)
+            ? compiler_record_local(self, &raw_name)
+            : compiler_record_global_var(self, &raw_name);
+        const Opcode temp_updater_op = (AnyVec_SymbolTable_len(&self->locals) > 1)
+            ? op_store_local
+            : op_set_gvar;
 
         if (!compiler_match_curr(self, tk_colon)) {
             compiler_warn(self, "Expected ':' before variable initializer.", &self->curr);
@@ -1201,7 +1240,7 @@ uint8_t compiler_do_vars(Compiler *self, Lexer *lexer, CompHints hints) {
         if (!compile_hints_check_flag(var_initializer_hints, cgen_visit_ok)) {
             return var_initializer_hints;
         }
-        compiler_emit_op_unflagged(self, op_store_local, var_locus->id);
+        compiler_emit_op_unflagged(self, temp_updater_op, var_locus->id);
 
         if (compiler_match_curr(self, tk_comma)) {
             compiler_eat_tk(self, lexer);
@@ -1642,6 +1681,8 @@ uint8_t compiler_do_expr_stmt(Compiler *self, Lexer *lexer, CompHints hints) {
             compiler_emit_op_flagged(self, op_store_local, 0, self->saved_info.id);
         } else if (compile_hints_check_flag(dest_hints, cgen_lhs_upval)) {
             compiler_emit_op_unflagged(self, op_set_upv, self->saved_info.id);
+        } else if (compile_hints_check_flag(dest_hints, cgen_lhs_global)) {
+            compiler_emit_op_unflagged(self, op_set_gvar, self->saved_info.id);
         } else if (compile_hints_check_flag(dest_hints, cgen_access_of)) {
             compiler_emit_op(self, op_set_idx);
         } else {
@@ -1916,7 +1957,7 @@ uint8_t compiler_do_lambda(Compiler *self, Lexer *lexer, CompHints hints) {
 
             // ? Record upvalue for this scope, but check for illegal shadowing.
             if (!compiler_record_capture(self, &captured_name, ScalarVec_int_len(&used_local_ids))) {
-                compiler_warn(self, "You cannot shadow any local parameter name with a capture.", &self->curr);
+                compiler_warn(self, "You cannot shadow any local parameter or global name  with a capture.", &self->curr);
                 fprintf(stderr, "\tNote: See USES of lambda at line %d, col %d.\n", self->curr.line, self->curr.col);
                 return cgen_dead;
             }

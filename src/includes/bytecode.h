@@ -43,6 +43,8 @@ typedef enum vm_opcode_t : uint8_t {
     op_put_bool,
     op_reserve,         // ? loads N NIL values when a function starts, reserving space for hoisted variables
     op_load_imm_gid,    // ? loads an immediate procedure ID --> chunk ID to dispatch to.
+    op_get_gvar,        // ? Args: <global-var-offset>; Pushes a copy of stack[0 + GVAR_OFFSET].
+    op_set_gvar,        // ? Args: <global-var-offset>; Pops off a stack temporary and sets stack[0 + GVAR_OFFSET].
     op_load_local,
     op_store_local,
     op_bind_lstmp,      // ? Args: <local-ID>, takes a referenced list and index int, binding that indexed temporary to a local by ID.
