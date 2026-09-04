@@ -149,9 +149,8 @@ A very trivial scripting language implemented in C11. Only for educational purpo
 #### v0.16.x: QoL 7
  - Make top-level declarations global by default. **OK**
  - Add diagnostic annotations:
-    - `@DOC "This function sorts all items using a predicate."`
-    - `@WARN "This function is too error prone.")`
+    - `@WARN "This function is too error prone."`
 
 #### v0.17.x: QoL 8
  - Add the ability to generate standalone C files which bundle TBasic bytecode & the interpreter as an executable.
- - Add [macro system](/docs/macros.md).
+ - ~~Add [macro system](/docs/macros.md).~~

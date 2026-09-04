@@ -1,0 +1,9 @@
+`test deprecated notes`
+
+FUN badAdd(a, b):
+    RET a + b + 1;
+END @DEPRECATED "badAdd adds 1 incorrectly."
+
+ASSERT badAdd(1, 1) == 3, "badAdd must give 3";
+
+RET TRUE;
