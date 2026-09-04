@@ -11,6 +11,7 @@
 STUB_SCALAR_VEC(int)
 
 typedef enum symbol_domain_t : uint8_t {
+    symbol_global_var,
     symbol_constant,
     symbol_local,
     symbol_func,
@@ -33,7 +34,7 @@ typedef struct symbol_table_t {
     int var_alloc_ip;       // ? position to patch in RESERVE opcode
     int16_t local_argc;     // ? count of parameter locals
     int16_t next_local_id;      // ? reused for local IDs
-    int16_t next_global_id;     // ? reused for global / constant IDs
+    int16_t next_global_id;     // ? reused for global funcs / constant IDs
 } SymbolTable;
 
 SymbolTable make_symbol_table();
@@ -69,6 +70,7 @@ typedef enum bcgen_flag_t : uint8_t {
     cgen_lhs_local = 0b00001000,    // ? Has the compiler just consumed only an assignment LHS name?
     cgen_lhs_native = 0b00010000,   // ? Has the compiler consumed a native function's name in the LHS?
     cgen_lhs_upval = 0b00100000,    // ? Has the compiler just consumed an upval / captured name for an LHS?
+    cgen_lhs_global = 0b01000000,   // ? Has the compiler just consumed a global variable name for an LHS?
     cgen_parse_err = 0b10000000
 } CompHints;
 

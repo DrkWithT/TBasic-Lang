@@ -15,8 +15,8 @@
 #define CONFIG_DEFAULT_VM_RECUR_LIMIT 64
 #define CONFIG_DEFAULT_VM_HEAP_POPULATION 256
 #define TBASIC_VERSION_MAJOR 0
-#define TBASIC_VERSION_MINOR 13
-#define TBASIC_VERSION_PATCH 3
+#define TBASIC_VERSION_MINOR 16
+#define TBASIC_VERSION_PATCH 0
 
 mystr read_file(const char *fname);
 
@@ -66,6 +66,6 @@ static inline void driver_set_flag(Driver *d, DriverFlag flag, int8_t arg) {
 
 void driver_bind_native(Driver *d, charspan name, NativeFn fn);
 Program driver_compile(Driver *d, const char *file_path);
-int driver_run(Driver *d, const char *file_path);
+int driver_run(Driver *d, const char *argv[], int argc);
 
 #endif

@@ -49,4 +49,6 @@ void dict_display_fn(const void *self, const void *vm);
 // ? stub function: NOOP
 uint8_t dict_invoke(void *self, void *vm, const Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc);
 
+Value dict_iterate_fn(void* self, void *vm);
+
 #endif

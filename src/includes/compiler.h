@@ -48,6 +48,7 @@ SymbolTable *compiler_begin_local_scope(Compiler *self);
 void compiler_end_local_scope(Compiler *self);
 const SymbolInfo *compiler_resolve_name(const Compiler *self, const charspan *symbol);
 const SymbolInfo *compiler_record_function(Compiler *self, const charspan *symbol, int chunk_id);
+const SymbolInfo *compiler_record_global_var(Compiler *self, const charspan *symbol);
 const SymbolInfo *compiler_record_local(Compiler *self, const charspan *symbol);
 const SymbolInfo *compiler_record_constant(Compiler *self_symbol, const charspan *symbol, Value v);
 const SymbolInfo *compiler_record_string(Compiler *self, const charspan *symbol);

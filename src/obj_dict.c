@@ -206,6 +206,10 @@ Value dict_get_v_fn(const void *self, Value key) {
 int8_t dict_set_v_fn(void *self, Value key, Value item) {
     Dict *self_as_dict = (Dict *)self;
 
+    if (!object_base_flag_get(&self_as_dict->base, oflag_mutable)) {
+        return 1;
+    }
+
     (void) ptree_set(&self_as_dict->root, &key, &item, oflag_mutable);
 
     return 1;
@@ -218,4 +222,8 @@ void dict_display_fn(const void *self, MAYBE_UNUSED const void *vm) {
 
 uint8_t dict_invoke(void *self, void *vm, const Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc) {
     return 0;
+}
+
+Value dict_iterate_fn(void *self, void *vm) {
+    return make_value_none(); // ? no-op
 }

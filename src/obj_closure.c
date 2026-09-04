@@ -90,3 +90,7 @@ uint8_t closure_invoke_fn(void *self, void *vm, const Instruction *caller_ip, co
 
     return closure_call_status;
 }
+
+Value closure_iterate_fn(void* self, void *vm) {
+    return make_value_none(); // ? no-op
+}

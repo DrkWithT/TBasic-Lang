@@ -109,28 +109,49 @@ A very trivial scripting language implemented in C11. Only for educational purpo
   ```
  - Add bitwise NOT, AND, OR, XOR, SHL, SHR... Remove RESERVE opcode in favor of a chunk's non-parameter local count. **OK**
  - Add binary / hexadecimal literals. **OK**
- - Add ASCII escapes in strings.
+ - Add ASCII escapes in strings. **OK**
 
 #### v0.14.x: QoL 6
- - Expand builtin library:
-    - Add `typeof` function:
-      - `typeof(val)`
+ - Add iterators. **OK**
+    - `tb_iterator_t`: Semantics of a cursor through an object, allowing checking, peeking, and advancing.
+    - **NO** `chkiter` function- iterators are testable to a boolean.
+    - `mkiter(obj)`: creates iterator.
+    - `mviter(obj)`: advances iterator, returns false on end.
+    - `pkiter(obj)`: peeks current value of iterator.
+ - Expand builtin library: **OK**
+    - Add `thaw` function:
+      - Args: an object reference
+      - Sets the object's mutable flag to `TRUE`.
+      - Returns `FALSE` on non-objects.
+    - Add `freeze` function:
+      - Args: an object reference
+      - Sets the object's mutable flag to `FALSE`, disallowing mutation of any kind.
+      - Returns `FALSE` for non-objects.
     - Add list functions:
-      - `lsrev(list)`
-      - `lscat(dest, src)` using native `__lscat(dest, src)`.
-      - `lsclr(list)` using native `__lsclr(list)`.
-      - `lsmap(list, fn)`
-      - `lsflt(list, fn)`
-      - `lscut(list, begin, len)`
-      - `apply(fn, argv)` using native `__apply(fn, argv)`.
-    - Add dict functions:
-      - `dckeys(dict)` using native `__iterof(dict)`.
+      - `lsrev(list)`: returns true if a list is fed.
+      - `lscat(dest, src)`: returns `dest` or NIL on success / failure.
+      - `lsclr(list)`: returns true if a list is fed.
+      - `lscut(list, begin, len)`: returns a new sliced list with given bounds.
     - Add file stream functions:
-      - `fopen(path, bitflags)`
-      - `fclose(fd)`
-      - `fpeek(fd)`
-      - `fread(fd, buf, n)`
-      - `fwrite(fd, buf, n)`
+      - An `fs` object has the semantics of a tuple with `(hidden-filename, 0 => pos, 1 => hasErr, 2 => isEOF)`.
+      - `fopen(path, mode: int)`: returns an `fs` on success but `NIL` on failure.
+        - Modes:
+          - 0: "r"
+          - 1: "rb"
+          - 2: "w"
+          - 3: "wb"
+      - `fclose(fs)`: returns `TRUE` on success.
+      - `fgetc(fs)`: returns ASCII code as a 0-255 integer value but `NIL` on failure.
+      - `fputc(fs, ascii)`: returns `TRUE` on success.
+      - `fread(fs, buf, n)`: returns `n` for bytes successfully read but `-1` on failure.
+      - `fwrite(fs, buf, n)`: return `n` for bytes successfully written but `-1` on failure.
 
-#### v0.15.x: QoL 7
+#### v0.16.x: QoL 7
+ - Make top-level declarations global by default. **OK**
+ - Add diagnostic annotations:
+    - `@DOC "This function sorts all items using a predicate."`
+    - `@WARN "This function is too error prone.")`
+
+#### v0.17.x: QoL 8
  - Add the ability to generate standalone C files which bundle TBasic bytecode & the interpreter as an executable.
+ - Add [macro system](/docs/macros.md).

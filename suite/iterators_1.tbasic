@@ -1,0 +1,13 @@
+`test use of iterators in a loop`
+
+LET nums : [1, 2, 3], nums_it : mkiter(nums), total : 0;
+
+WHILE nums_it:
+    total := total + pkiter(nums_it);
+
+    mviter(nums_it);
+END
+
+ASSERT total == 6, "Expected iterator sum of nums as 6.";
+
+RET TRUE;

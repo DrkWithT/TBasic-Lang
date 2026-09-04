@@ -1,58 +1,10 @@
-#ifndef TBASIC_NATIVES_H
-#define TBASIC_NATIVES_H
-
-
-
-#include <stdio.h>
 #include <math.h>
-
-#include "mystr.h"
-// #include "obj_list.h"
 #include "obj_str.h"
-#include "vm.h"
+#include "tb_gen_stdlib.h"
 
 
 
-static inline void native_print_str(const mystr *strings, int id) {
-    if (id < 0) {
-        printf("'...'");
-    } else {
-        printf("%s", strings[id].data);
-    }
-}
-
-/*
- * Invariants: 
- * 1. Returns NONE in STACK[CALLEE_BP].
- * 2. The convention is followed for the VM:
- *      CALLEE_BP = SP - ARGC
- *      LOCALS[N] = STACK[CALLEE_BP + 1 + N]
- * Stack Layout: of print(1, 2, 3)
- * | Value(Int(3)) | <--- SP <--- CALLEE_BP + 3
- * | Value(Int(2)) |
- * | Value(Int(1)) | <--- LOCAL_1 <--- CALLEE_BP + 1
- * | Value(Fun-ID) | <--- CALLEE_BP = SP - ARGC = SP - 3 <--- PUT "none"
- */
-static inline VMStatus native_print(VMState *s) {
-    const int callee_bp = s->bp;
-    const int argc = s->sp - s->bp;
-
-    for (int i = 1; i <= argc; i++) {
-        const Value *arg_ref = s->stack + callee_bp + i;
-
-        print_value(arg_ref, s);
-        printf(" ");
-    }
-
-    printf("\n");
-
-    s->sp++;
-    s->stack[s->sp] = make_value_none();
-
-    return vm_status_pending;
-}
-
-static inline VMStatus native_powf(VMState *s) {
+VMStatus native_powf(VMState *s) {
     const int callee_bp = s->bp;
     const Value a0 = s->stack[callee_bp + 1];
     const Value a1 = s->stack[callee_bp + 2];
@@ -68,7 +20,7 @@ static inline VMStatus native_powf(VMState *s) {
     return vm_status_pending;
 }
 
-static inline VMStatus native_sqrtf(VMState *s) {
+VMStatus native_sqrtf(VMState *s) {
     const int callee_bp = s->bp;
     const Value a0 = s->stack[callee_bp + 1];
 
@@ -83,7 +35,7 @@ static inline VMStatus native_sqrtf(VMState *s) {
     return vm_status_pending;
 }
 
-static inline float clamp_f32(float v, float low, float high) {
+float clamp_f32(float v, float low, float high) {
     if (v < low) {
         return low;
     } else if (v > high) {
@@ -93,7 +45,7 @@ static inline float clamp_f32(float v, float low, float high) {
     }
 }
 
-static inline VMStatus native_clampf(VMState *s) {
+VMStatus native_clampf(VMState *s) {
     const int callee_bp = s->bp;
     const Value a0 = s->stack[callee_bp + 1];
     const Value a1 = s->stack[callee_bp + 2];
@@ -110,7 +62,7 @@ static inline VMStatus native_clampf(VMState *s) {
     return vm_status_pending;
 }
 
-static inline VMStatus native_floorf(VMState *s) {
+VMStatus native_floorf(VMState *s) {
     const int callee_bp = s->bp;
     const Value a0 = s->stack[callee_bp + 1];
 
@@ -125,7 +77,7 @@ static inline VMStatus native_floorf(VMState *s) {
     return vm_status_pending;
 }
 
-static inline VMStatus native_ceilf(VMState *s) {
+VMStatus native_ceilf(VMState *s) {
     const int callee_bp = s->bp;
     const Value a0 = s->stack[callee_bp + 1];
 
@@ -140,52 +92,7 @@ static inline VMStatus native_ceilf(VMState *s) {
     return vm_status_pending;
 }
 
-static inline VMStatus native_console_readln(VMState *s) {
-    const int callee_bp = s->bp;
-
-    if (feof(stdin)) {
-        clearerr(stdin);
-    } else if (ferror(stdin)) {
-        fprintf(stderr, "STDIN is in an errorneous state, try console_reset().\n");
-        return 0;
-    }
-
-    mystr input_str;
-    mystr_new(&input_str, "");
-    char c = '\0';
-    size_t rc = 0;
-
-    while (1) {
-        rc = fread(&c, sizeof(char), 1, stdin);
-
-        if (c == '\n' || rc <= 0 || feof(stdin)) {
-            break;
-        } else if (ferror(stdin)) {
-            perror("Failed to read line.");
-            break;
-        } else {
-            mystr_append_raw(&input_str, &c, 1);
-        }
-    }
-
-    s->sp++;
-    s->stack[s->sp] = make_value_obj(vm_put_heap_string(s, &input_str));
-
-    return 1;
-}
-
-static inline VMStatus native_console_reset(VMState *s) {
-    const int callee_bp = s->bp;
-
-    clearerr(stdin);
-
-    s->sp++;
-    s->stack[s->sp] = make_value_none();
-
-    return 1;
-}
-
-static inline VMStatus native_stoi(VMState *s) {
+VMStatus native_stoi(VMState *s) {
     const int callee_bp = s->bp;
 
     const Value arg = s->stack[callee_bp + 1];
@@ -219,7 +126,7 @@ static inline VMStatus native_stoi(VMState *s) {
     return 1;
 }
 
-static inline VMStatus native_stof(VMState *s) {
+VMStatus native_stof(VMState *s) {
     const int callee_bp = s->bp;
 
     const Value arg = s->stack[callee_bp + 1];
@@ -252,5 +159,3 @@ static inline VMStatus native_stof(VMState *s) {
 
     return 1;
 }
-
-#endif

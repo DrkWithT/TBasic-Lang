@@ -24,7 +24,7 @@ SymbolTable make_symbol_table() {
             .capacity = DEFAULT_SYMBOL_COUNT,
             .var_alloc_ip = 0,
             .local_argc = 0,
-            .next_local_id = 0,     // ? Start from BP since BP holds the callee... OLD + 1 --> new ID.
+            .next_local_id = 0,     // ? Start from BP since BP holds the callee... OLD + 1 --> new ID, but top-level local names are globals which begin from 0.
         };
     }
 

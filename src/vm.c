@@ -27,9 +27,12 @@ static OpFunc opcode_handlers[] = {
     fn_put_bool,
     fn_reserve,
     fn_load_imm_gid,
+    fn_get_gvar,
+    fn_set_gvar,
     fn_load_local,
     fn_store_local,
     fn_bind_lstmp,
+    fn_gbind_lstmp,
     fn_put_k,
     fn_dup,
     fn_pop,
@@ -141,6 +144,24 @@ VMStatus fn_load_imm_gid(VMState *s, const Instruction *ip, const Value *cvp, Va
     return dispatcher(s, ip, cvp, stack);
 }
 
+VMStatus fn_get_gvar(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    s->sp++;
+    stack[s->sp] = stack[ip->wide];
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_set_gvar(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    stack[ip->wide] = stack[s->sp];
+    s->sp--;
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
 VMStatus fn_load_local(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
     s->sp++;
     stack[s->sp] = stack[s->bp + ip->wide];
@@ -176,6 +197,31 @@ VMStatus fn_bind_lstmp(VMState *s, const Instruction *ip, const Value *cvp, Valu
     }
 
     stack[s->bp + ip->wide] = obj->get_v(obj, make_value_int(ip->flag));
+
+    ip++;
+
+    TAILCALL
+    return dispatcher(s, ip, cvp, stack);
+}
+
+VMStatus fn_gbind_lstmp(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
+    const Value *obj_ref = stack + s->sp;
+    if (obj_ref->tag != vtag_obj_id) {
+        fprintf(stderr, "\x1b[1;31mABORTED\x1b[0m: Cannot form binding to non-object's items.\n\n");
+        return vm_status_err_abort;
+    }
+    
+    ObjPtr obj = heap_get(&s->heap, obj_ref->data.obj_id);
+    if (obj == NULL) {
+        fprintf(stderr, "\x1b[1;31mABORTED\x1b[0m: Cannot form binding to non-existent object's items.\n\n");
+        return vm_status_err_abort;
+    } else if (obj->meta.tag != otag_list) {
+        fprintf(stderr, "\x1b[1;31mABORTED\x1b[0m: Cannot form binding to a non-list's items.\n\n");
+        return vm_status_err_abort;
+    }
+
+    // ? Absolute stack BP of top-code's global vars = 0.
+    stack[ip->wide] = obj->get_v(obj, make_value_int(ip->flag));
 
     ip++;
 
@@ -801,7 +847,8 @@ VMStatus fn_jmp_false(VMState *s, const Instruction *ip, const Value *cvp, Value
         require_truthy_pop = temp->data.f != 0.0f;
         break;
     case vtag_obj_id:
-        temp_as_obj = heap_get(&s->heap, (temp->tag == vtag_obj_id) ? temp->data.obj_id : -1); // ? Use polymorphic as_bool() call on the object ONLY IF it's legit... For safety reasons.
+        // ? Use polymorphic as_bool() call on the object if applicable, considering type safety.
+        temp_as_obj = heap_get(&s->heap, (temp->tag == vtag_obj_id) ? temp->data.obj_id : -1);
         require_truthy_pop = (temp_as_obj) ? temp_as_obj->as_bool(temp_as_obj) : 0;
         break;
     default:
@@ -822,24 +869,35 @@ VMStatus fn_jmp_false(VMState *s, const Instruction *ip, const Value *cvp, Value
 
 VMStatus fn_jmp_if(VMState *s, const Instruction *ip, const Value *cvp, Value *stack) {
     const Value *temp = stack + s->sp;
+    ObjPtr temp_as_obj = NULL;
+    int8_t require_pop = 0;
 
     switch (temp->tag) {
-    case vtag_nil:
-        ip++;
-        break;
+    case vtag_nil: break;
     case vtag_bool:
-        ip += (temp->data.byte != 0) ? ip->wide : 1;
+        require_pop = temp->data.byte == 0;
         break;
     case vtag_int:
-        ip += (temp->data.i != 0) ? ip->wide : 1;
+        require_pop = temp->data.i == 0;
         break;
     case vtag_real:
-        ip += (temp->data.f != 0.0f) ? ip->wide : 1;
+        require_pop = temp->data.f == 0.0f;
+        break;
+    case vtag_obj_id:
+        // ? Use polymorphic as_bool() call on the object if applicable, considering type safety.
+        temp_as_obj = heap_get(&s->heap, (temp->tag == vtag_obj_id) ? temp->data.obj_id : -1);
+        require_pop = (temp_as_obj) ? !temp_as_obj->as_bool(temp_as_obj) : 1;
         break;
     default:
+        break;
+    }
+
+    // ? NOTE: IF temp == FALSE, POP it & advance to next evaluation. This works for short-circuiting of `temp_eval1 --> LHS && temp_eval2 --> RHS`.
+    if (require_pop) {
         s->sp--;
         ip++;
-        break;
+    } else {
+        ip += ip->wide;
     }
 
     TAILCALL

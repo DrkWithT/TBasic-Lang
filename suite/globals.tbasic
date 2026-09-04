@@ -1,0 +1,26 @@
+`test global name lookup`
+
+LET ans : 42, testC : NIL;
+
+FUN testA():
+    RET ans;
+END
+
+FUN testB(ans):
+    `scuffed shadowing of local by global`
+    RET ans;
+END
+
+FUN makeC(x):
+    RET FUN () USES x:
+        RET ans + x;
+    END;
+END
+
+testC := makeC(27);
+
+ASSERT testA() == 42, "Global test A failed.\n";
+ASSERT testB(69) == 42, "Global test B failed.\n";
+ASSERT testC() == 69, "Global test C failed.\n";
+
+RET TRUE;

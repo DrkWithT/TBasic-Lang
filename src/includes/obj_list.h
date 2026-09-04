@@ -2,7 +2,6 @@
 #define TBASIC_LIST_OBJECT_H
 
 #include "objects.h"
-#include "vm.h"
 
 
 
@@ -22,7 +21,6 @@ void list_display_fn(const void *self, const void *vm);
 // ? stub function: NOOP
 uint8_t list_invoke(void *self, void *vm, const Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc);
 
-// ! EXTRA method for querying object length / size. See README.
-size_t list_len(const void *self);
+Value list_iterate_fn(void* self, void *vm);
 
 #endif

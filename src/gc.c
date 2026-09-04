@@ -5,6 +5,7 @@
 #include "obj_list.h"
 #include "obj_dict.h"
 #include "obj_closure.h"
+#include "obj_iterator.h"
 #include "gc.h"
 
 
@@ -220,6 +221,12 @@ static void GCState_mark_upvals(GCState *self, const Value *upvals_p, uint32_t n
             BitSet_set_at(&self->reach_bits, (upvals_p + i)->data.obj_id);
         }
     }
+}
+
+static void GCState_mark_iter(GCState *self, const Iter *iter_p) {
+    const int16_t tracked_oid = iter_p->oid;
+
+    BitSet_set_at(&self->reach_bits, tracked_oid);
 }
 
 void GCState_collect(GCState *self, ObjHeap *heap, const Value *stack_ptr, int stack_sp) {

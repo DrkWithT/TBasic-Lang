@@ -24,6 +24,8 @@ typedef enum obj_tag_t : uint8_t {
     otag_dict,
     otag_err,
     otag_closure,
+    otag_iter,
+    otag_fs,
 } ObjTag;
 
 typedef enum obj_flags_t : uint8_t {
@@ -46,7 +48,8 @@ typedef struct obj_base_t {
     Value (*get_v) (const void *self, Value key);
     int8_t (*set_v) (void *self, Value key, Value item);
     void (*display) (const void *self, const void *vm);
-    uint8_t (*invoke) (void *self, void *vm, const Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc); // todo
+    uint8_t (*invoke) (void *self, void *vm, const Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc);
+    Value (*iterate) (void* self, void *vm); // ! For iterators only.
 } ObjBase;
 
 typedef const ObjBase* ObjPtr;

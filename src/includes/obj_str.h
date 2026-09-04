@@ -1,11 +1,8 @@
 #ifndef TBASIC_STRING_OBJECT_H
 #define TBASIC_STRING_OBJECT_H
 
-
-
 #include "mystr.h"
 #include "objects.h"
-#include "vm.h"
 
 
 
@@ -29,5 +26,7 @@ void string_display_fn(const void *self, const void *vm_state);
 
 // ? stub function: NOOP
 uint8_t string_invoke(void *self, void *vm, const Instruction *caller_ip, const Value *caller_cvp, Value *stack_p, int16_t argc);
+
+Value str_iterate_fn(void* self, void *vm);
 
 #endif
