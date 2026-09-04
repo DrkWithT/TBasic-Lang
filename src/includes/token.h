@@ -27,6 +27,7 @@ typedef enum token_tag_t {
     tk_keyword_uses,
     tk_keyword_end,
     tk_keyword_assert,
+    tk_annotation_name,
     tk_identifier,
     tk_none,
     tk_true,

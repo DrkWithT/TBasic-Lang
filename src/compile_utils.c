@@ -4,11 +4,12 @@
 
 IMPL_SCALAR_VEC(int)
 
+IMPL_SCALAR_VEC(SymbolNote)
 
-
-SymbolInfo make_symbol_info(charspan name_v, int16_t id, Domain d) {
+SymbolInfo make_symbol_info(charspan name_v, int16_t note_id, int16_t id, Domain d) {
     return (SymbolInfo) {
         .name = name_v,
+        .api_note_id = note_id,
         .id = id,
         .domain = d
     };
@@ -16,9 +17,18 @@ SymbolInfo make_symbol_info(charspan name_v, int16_t id, Domain d) {
 
 SymbolTable make_symbol_table() {
     SymbolInfo *temp_infos = calloc(DEFAULT_SYMBOL_COUNT, sizeof(SymbolInfo));
+    ScalarVec_SymbolNote temp_notes;
+    ScalarVec_SymbolNote_new(&temp_notes, DEFAULT_SYMBOL_COUNT, (SymbolNote) {
+        .msg = {
+            .data = NULL,
+            .length = 0
+        },
+        .tag = tb_api_none
+    });
 
     if (temp_infos != NULL) {   
         return (SymbolTable) {
+            .notes = temp_notes,
             .infos = temp_infos,
             .length = 0,
             .capacity = DEFAULT_SYMBOL_COUNT,
@@ -29,6 +39,11 @@ SymbolTable make_symbol_table() {
     }
 
     return (SymbolTable) {
+        .notes = {
+            .data = NULL,
+            .capacity = 0,
+            .length = 0
+        },
         .infos = NULL,
         .length = 0,
         .capacity = 0,
@@ -41,7 +56,14 @@ SymbolTable make_symbol_table() {
 void SymbolTable_dud(SymbolTable *self) {
     SymbolInfo *temp_infos = calloc(DEFAULT_SYMBOL_COUNT, sizeof(SymbolInfo));
 
-    if (temp_infos != NULL) {   
+    if (temp_infos != NULL) {
+        ScalarVec_SymbolNote temp_notes;
+        ScalarVec_SymbolNote_new(&temp_notes, DEFAULT_SYMBOL_COUNT, (SymbolNote) {
+            .msg = { .data = NULL, .length = 0 },
+            .tag = tb_api_none
+        });
+
+        self->notes = temp_notes;
         self->infos = temp_infos;
         self->length = 0;
         self->capacity = DEFAULT_SYMBOL_COUNT;
@@ -57,6 +79,11 @@ void SymbolTable_dud(SymbolTable *self) {
             };
         }
     } else {
+        self->notes = (ScalarVec_SymbolNote) {
+            .data = NULL,
+            .capacity = 0,
+            .length = 0
+        };
         self->infos = NULL;
         self->length = 0;
         self->capacity = 0;
@@ -68,6 +95,8 @@ void SymbolTable_dud(SymbolTable *self) {
 }
 
 void SymbolTable_del(SymbolTable *self) {
+    ScalarVec_SymbolNote_del(&self->notes);
+
     if (self->infos != NULL) {
         free(self->infos);
         self->infos = NULL;
@@ -79,6 +108,7 @@ void SymbolTable_copy(SymbolTable *dest, const SymbolTable *src) {
         return;
     }
 
+    dest->notes = src->notes;
     dest->infos = src->infos;
     dest->length = src->length;
     dest->capacity = src->capacity;
@@ -120,6 +150,27 @@ const SymbolInfo *SymbolTable_push(SymbolTable *symbols, const SymbolInfo *info)
     symbols->length++;
 
     return symbols->infos + next_pos;
+}
+
+void annotate_symbol_table_at(SymbolTable *self, const charspan *symbol, SymbolNote note) {
+    SymbolInfo *entries_it = self->infos;
+    SymbolInfo *entries_end = self->infos + self->length;
+    const int16_t next_note_id = self->notes.length;
+    uint8_t info_found = 0;
+
+    for (; entries_it != entries_end; entries_it++) {
+        if (charspan_equals_charspan(&entries_it->name, symbol)) {
+            entries_it->api_note_id = next_note_id;
+            info_found = 1;
+            break;
+        }
+    }
+
+    if (!info_found) {
+        return;
+    }
+
+    ScalarVec_SymbolNote_push(&self->notes, note);
 }
 
 IMPL_VEC(SymbolTable)

@@ -68,7 +68,14 @@ Compiler make_compiler() {
         .globals = make_symbol_table(),
         .locals = local_scopes,
         .loops = temp_loops,
-        .saved_info = make_symbol_info((charspan) {.data = NULL, .length = 0}, 0, symbol_constant),
+        .saved_info = make_symbol_info((charspan) {.data = NULL, .length = 0}, -1, 0, symbol_constant),
+        .temp_note = {
+            .msg = {
+                .data = NULL,
+                .length = 0
+            },
+            .tag = tb_api_none
+        },
         .s = (charspan) {.data = NULL, .length = 0},
         .curr = (Token) {
             .begin = 0,
@@ -184,6 +191,36 @@ void compiler_eat_tk(Compiler *self, Lexer *lexer) {
 void compiler_warn(Compiler *self, const char *msg, const Token *tk) {
     self->errors++;
     fprintf(stderr, "\x1b[1;31mCompile Error\x1b[0m #%d at line \x1b[1;36m%d\x1b[0m, col \x1b[1;36m%d\x1b[0m:\n\tNote: %s\n", self->errors, tk->line, tk->col, msg);
+}
+
+void compiler_show_api_note(Compiler *self, const SymbolInfo *name_info, int line, int col) {
+    const SymbolTable *scope = &self->globals; // ? Functions are top-level, so just check for their symbol in the earliest scope.
+    const SymbolInfo *info_it = scope->infos;
+    const SymbolInfo *info_end = scope->infos + scope->length;
+    int16_t note_id = -1;
+
+    for (; info_it != info_end; info_it++) {
+        if (charspan_equals_charspan(&info_it->name, &name_info->name) && info_it->domain == name_info->domain) {
+            note_id = info_it->api_note_id;
+            break;
+        }
+    }
+
+    if (note_id == -1) {
+        return;
+    }
+
+    const SymbolNote *note_it = scope->notes.data + note_id;
+
+    switch (note_it->tag) {
+        case tb_api_deprecated:
+            fprintf(stderr, "\x1b[1;33mDEPRECATED USAGE\x1b[0m:\n\t");
+            fwrite(note_it->msg.data, sizeof(char), note_it->msg.length, stderr);
+            fprintf(stderr, "\n");
+            break;
+        case tb_api_none: default:
+            break;
+    }
 }
 
 size_t compiler_emit_op(Compiler *self, Opcode op) {
@@ -507,6 +544,47 @@ void compiler_track_continue_pos(Compiler *self, int pos) {
 
 
 
+uint8_t compiler_try_parse_api_note(Compiler *self, Lexer *lexer, CompHints hints) {
+    if (!compiler_match_curr(self, tk_annotation_name) && (compiler_match_curr(self, tk_spaces) || compiler_match_curr(self, tk_comment))) {
+        return cgen_visit_ok;
+    }
+    compiler_eat_tk(self, lexer);
+
+    const Token maybe_annotation_name = self->prev;
+    charspan msg_type = {
+        .data = self->s.data + self->prev.begin,
+        .length = self->prev.length
+    };
+
+    if (!charspan_equals_raw(&msg_type, "DEPRECATED", 10)) {
+        compiler_warn(self, "Expected valid annotation word here e.g \x1b[1;33mDEPRECATED\x1b[0m.", &self->prev);
+        fprintf(stderr, "\tNote: See line %d, col %d.\n", self->prev.line, self->prev.col);
+
+        return cgen_parse_err;
+    }
+
+    if (!compiler_match_curr(self, tk_string)) {
+        compiler_warn(self, "Expected an unescaped annotated message here.", &self->prev);
+        fprintf(stderr, "\tNote: See line %d, col %d.\n", self->prev.line, self->prev.col);
+
+        return cgen_parse_err;
+    }
+    compiler_eat_tk(self, lexer);
+
+    const Token annotation_msg_tk = self->prev;
+    charspan msg_data = {
+        .data = self->s.data + self->prev.begin,
+        .length = self->prev.length
+    };
+
+    self->temp_note = (SymbolNote) {
+        .msg = msg_data,
+        .tag = tb_api_deprecated
+    };
+
+    return cgen_visit_ok;
+}
+
 uint8_t compiler_do_list(Compiler *self, Lexer *lexer, CompHints hints) {
     compiler_eat_tk(self, lexer); // ? SKIP '['
 
@@ -693,6 +771,8 @@ uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, CompHints hints) {
 
         return cgen_dead;
     }
+
+    compiler_show_api_note(self, temp_locus, self->curr.line, self->curr.col);
 
     if (self->curr.tag == tk_os_bind_equals) {
         hints |= cgen_assign_to;
@@ -1844,6 +1924,13 @@ uint8_t compiler_do_func(Compiler *self, Lexer *lexer, CompHints hints) {
         compiler_emit_op_flagged(self, op_ret, TBASIC_RET_MARK_LAST, 0); // ! IMPORTANT: place function bytecode terminator for exceptions to heed, avoiding an OOB access.
         compiler_patch_reserve_inst(self, func_scope);
         compiler_patch_debug_info(self, name_lexeme, func_line, func_col);
+
+        const uint8_t annotation_result = compiler_try_parse_api_note(self, lexer, hints);
+
+        if (compile_hints_check_flag(annotation_result, cgen_visit_ok) && self->temp_note.tag != tb_api_none) {
+            annotate_symbol_table_at(&self->globals, &name_lexeme, self->temp_note);
+            self->temp_note.tag = tb_api_none;
+        }
 
         compiler_end_local_scope(self);
         self->chunk_idx = old_chunk_idx;

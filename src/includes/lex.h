@@ -76,6 +76,8 @@ Token lexer_lex_numeric(Lexer *self, const charspan *s);
 
 Token lexer_lex_based_int(Lexer *self, const charspan *s);
 
+Token lexer_lex_annotation_name(Lexer *self, const charspan *s);
+
 Token lexer_lex_word(Lexer *self, const charspan *s);
 
 Token lexer_lex_operator(Lexer *self, const charspan *s);

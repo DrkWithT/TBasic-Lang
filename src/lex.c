@@ -267,6 +267,32 @@ Token lexer_lex_based_int(Lexer *self, const charspan *s) {
     };
 }
 
+Token lexer_lex_annotation_name(Lexer *self, const charspan *s) {
+    lexer_consume(self, '@'); // ? eat prechecked '@'
+
+    const int tk_start = self->pos;
+    const uint16_t tk_line = self->line;
+    const uint16_t tk_col = self->col;
+
+    while (!lexer_done(self)) {
+        const char c = s->data[self->pos];
+
+        if (is_word_symbol(c)) {
+            lexer_consume(self, c);
+        } else {
+            break;
+        }
+    }
+
+    return (Token) {
+        .begin = tk_start,
+        .length = self->pos - tk_start,
+        .line = tk_line,
+        .col = tk_col,
+        .tag = tk_annotation_name
+    };
+}
+
 Token lexer_lex_word(Lexer *self, const charspan *s) {
     const int tk_start = self->pos;
     const uint16_t tk_line = self->line;
@@ -365,6 +391,7 @@ Token lexer_next(Lexer *self, const charspan *s) {
         case '`': return lexer_lex_between(self, tk_comment, s);
         case '\"': return lexer_lex_escaped_str(self, s);
         case '#': return lexer_lex_based_int(self, s);
+        case '@': return lexer_lex_annotation_name(self, s);
         default: break;
     }
 

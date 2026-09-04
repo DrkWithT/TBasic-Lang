@@ -10,6 +10,19 @@
 
 STUB_SCALAR_VEC(int)
 
+typedef enum symbol_note_tag_t : uint8_t {
+    tb_api_none,
+    tb_api_info,
+    tb_api_deprecated
+} SymbolNoteTag;
+
+typedef struct symbol_api_note_t {
+    charspan msg;
+    SymbolNoteTag tag;
+} SymbolNote;
+
+STUB_SCALAR_VEC(SymbolNote)
+
 typedef enum symbol_domain_t : uint8_t {
     symbol_global_var,
     symbol_constant,
@@ -21,13 +34,15 @@ typedef enum symbol_domain_t : uint8_t {
 
 typedef struct symbol_info_t {
     charspan name;
+    int16_t api_note_id;
     int16_t id;
     Domain domain;
 } SymbolInfo;
 
-SymbolInfo make_symbol_info(charspan name_v, int16_t id, Domain d);
+SymbolInfo make_symbol_info(charspan name_v, int16_t note_id, int16_t id, Domain d);
 
 typedef struct symbol_table_t {
+    ScalarVec_SymbolNote notes;
     SymbolInfo *infos;
     int length;
     int capacity;
@@ -43,6 +58,7 @@ void SymbolTable_del(SymbolTable *self);
 void SymbolTable_copy(SymbolTable *dest, const SymbolTable *src);
 const SymbolInfo *SymbolTable_find(const SymbolTable *symbols, const charspan *s, Domain d);
 const SymbolInfo *SymbolTable_push(SymbolTable *symbols, const SymbolInfo *info);
+void annotate_symbol_table_at(SymbolTable *self, const charspan *symbol, SymbolNote note);
 
 STUB_VEC(SymbolTable)
 

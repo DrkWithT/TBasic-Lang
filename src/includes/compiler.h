@@ -16,6 +16,7 @@ typedef struct compiler_t {
     AnyVec_SymbolTable locals;
     AnyVec_ActiveLoop loops;
     SymbolInfo saved_info;
+    SymbolNote temp_note;
     charspan s;             // ? pg source view
     Token prev;
     Token curr;
@@ -37,6 +38,7 @@ int8_t compiler_match_prev(const Compiler *self, TkTag tag);
 Token compiler_advance_tk(Compiler *self, Lexer *lexer);
 void compiler_eat_tk(Compiler *self, Lexer *lexer);
 void compiler_warn(Compiler *self, const char *msg, const Token *tk);
+void compiler_show_api_note(Compiler *self, const SymbolInfo *name_info, int line, int col);
 
 size_t compiler_emit_op(Compiler *self, Opcode op);
 size_t compiler_emit_op_unflagged(Compiler *self, Opcode op, int16_t wide);
@@ -60,6 +62,7 @@ void compiler_leave_loop(Compiler *self);
 void compiler_track_break_pos(Compiler *self, int pos);
 void compiler_track_continue_pos(Compiler *self, int pos);
 
+uint8_t compiler_try_parse_api_note(Compiler *self, Lexer *lexer, CompHints hints);
 uint8_t compiler_do_list(Compiler *self, Lexer *lexer, CompHints hints);
 uint8_t compiler_do_dict(Compiler *self, Lexer *lexer, CompHints hints);
 uint8_t compiler_do_literal(Compiler *self, Lexer *lexer, CompHints hints);
